@@ -9,11 +9,10 @@ def payment_view(page, booking_data):
     BG = "#F5F5F5"
     CARD = "#FFFFFF"
     BORDER = "#E0E0E0"
-    TEXT_MUTED = "#7A7A7A"
+    TEXT_MUTED = "#2E2E2E"
 
-    # ── Back Navigation ─────────────────────
     def go_back(e):
-        page.go("/")  # change if your previous route is different
+        page.go("/")
 
     # ── Section Card ─────────────────────
     def section(title, content):
@@ -39,7 +38,8 @@ def payment_view(page, booking_data):
             border_radius=10,
             border_color=BORDER,
             focused_border_color=PRIMARY,
-            bgcolor="#FAFAFA"
+            bgcolor="#FAFAFA",
+            color="#000000",
         )
 
     # ── Payment Logos ─────────────────────
@@ -80,7 +80,7 @@ def payment_view(page, booking_data):
                     alignment=ft.alignment.Alignment(0, 0),
                     content=ft.Text("1", color="white")
                 ),
-                ft.Text("Payment")
+                ft.Text("Payment", color=TEXT_MUTED)
             ], spacing=8),
 
             ft.Container(expand=True, height=1, bgcolor=BORDER),
@@ -103,23 +103,23 @@ def payment_view(page, booking_data):
     # ── Inputs ─────────────────────
     card_number = input_field("Card number", "1234 5678 9012 3456")
     card_name = input_field("Cardholder name", "Full name as on card")
-    expiry = input_field("MM / YY", "Exipry Date", 150)
+    expiry = input_field("MM / YY", "Expiry Date", 150)
     cvv = input_field("CVV", "•••", 120)
 
     # ── Formatters ─────────────────────
     def format_card(e):
-        raw = re.sub(r"\D", "", card_number.value)[:16]
-        card_number.value = " ".join(raw[i:i+4] for i in range(0, len(raw), 4))
-        page.update()
+        raw = re.sub(r"\D", "", e.control.value)[:16]
+        e.control.value = " ".join(raw[i:i+4] for i in range(0, len(raw), 4))
+        e.control.update()
 
     def format_expiry(e):
-        raw = re.sub(r"\D", "", expiry.value)[:4]
-        expiry.value = raw[:2] + "/" + raw[2:] if len(raw) >= 3 else raw
-        page.update()
+        raw = re.sub(r"\D", "", e.control.value)[:4]
+        e.control.value = raw[:2] + "/" + raw[2:] if len(raw) >= 3 else raw
+        e.control.update()
 
     def format_cvv(e):
-        cvv.value = re.sub(r"\D", "", cvv.value)[:3]
-        page.update()
+        e.control.value = re.sub(r"\D", "", e.control.value)[:3]
+        e.control.update()
 
     card_number.on_change = format_card
     expiry.on_change = format_expiry
@@ -153,19 +153,16 @@ def payment_view(page, booking_data):
 
             if year < now.year or (year == now.year and month < now.month):
                 expiry.error_text = "Expired"
-                return "Expiry date is invalid or expired"
+                return "Card expiry date is invalid or expired"
         except:
             expiry.error_text = "MM/YY"
-            return "Expiry date must be in MM/YY format"
+            return "Expiry must be in MM/YY format"
 
         return None
 
     # ── Snackbar ─────────────────────
     def show_error(message):
-        snack = ft.SnackBar(
-            content=ft.Text(message),
-            bgcolor="#D32F2F"
-        )
+        snack = ft.SnackBar(content=ft.Text(message), bgcolor="#D32F2F")
         page.overlay.append(snack)
         snack.open = True
         page.update()
@@ -173,24 +170,24 @@ def payment_view(page, booking_data):
     # ── Handler ─────────────────────
     def handle_payment(e):
         error = validate()
-        page.update()
+        card_number.update()
+        card_name.update()
+        expiry.update()
+        cvv.update()
 
         if error:
             show_error(error)
             return
 
-        snack = ft.SnackBar(
-            content=ft.Text("Processing payment..."),
-            bgcolor=PRIMARY
-        )
+        snack = ft.SnackBar(content=ft.Text("Processing payment..."), bgcolor=PRIMARY)
         page.overlay.append(snack)
         snack.open = True
         page.update()
-        
-        booking_id = "BK12345"  # replace with real backend value
+
+        booking_id = "BK12345"
         page.go(f"/success/{booking_id}")
 
-    # ── Card Section ─────────────────────
+    # ── Sections ─────────────────────
     card_section = section(
         "Card details",
         ft.Column([
@@ -200,12 +197,12 @@ def payment_view(page, booking_data):
         ], spacing=10)
     )
 
-    # ── Summary ─────────────────────
     def row(label, value, bold=False):
         return ft.Row(
             [
                 ft.Text(label, color=TEXT_MUTED),
-                ft.Text(value, weight=ft.FontWeight.BOLD if bold else None)
+                ft.Text(value, color="#000000",
+                        weight=ft.FontWeight.BOLD if bold else None)
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         )
@@ -221,7 +218,6 @@ def payment_view(page, booking_data):
         ], spacing=8)
     )
 
-    # ── Button ─────────────────────
     pay_button = ft.Container(
         height=55,
         border_radius=12,
@@ -236,37 +232,43 @@ def payment_view(page, booking_data):
         )
     )
 
-    # ── Layout ─────────────────────
+    # ── FINAL FIXED LAYOUT ─────────────────────
     return ft.View(
         route="/payment",
         bgcolor=BG,
         controls=[
             ft.Container(
                 expand=True,
-                alignment=ft.alignment.Alignment(0, -1),
-                padding=20,
-                content=ft.Container(
-                    width=380,
-                    content=ft.Column(
-                        [
-                            # 🔙 BACK BUTTON
-                            ft.Row([
-                                ft.TextButton("← Back", on_click=go_back)
-                            ]),
+                content=ft.Column(
+                    [
+                        ft.Container(
+                            padding=20,  # 👈 content padding stays
+                            content=ft.Column(
+                                [
+                                    ft.Row([
+                                        ft.TextButton("← Back", on_click=go_back)
+                                    ]),
 
-                            ft.Text("CHECKOUT", size=12, color=TEXT_MUTED),
-                            ft.Text("Complete your booking",
-                                    size=22,
-                                    weight=ft.FontWeight.BOLD),
+                                    ft.Text("CHECKOUT", size=12, color=TEXT_MUTED),
 
-                            step_bar,
-                            section("Payment method", methods),
-                            card_section,
-                            summary,
-                            pay_button
-                        ],
-                        spacing=18
-                    )
+                                    ft.Text(
+                                        "Complete your booking",
+                                        size=22,
+                                        weight=ft.FontWeight.BOLD,
+                                        color="#000000"
+                                    ),
+
+                                    step_bar,
+                                    section("Payment method", methods),
+                                    card_section,
+                                    summary,
+                                    pay_button
+                                ],
+                                spacing=18,
+                            )
+                        )
+                    ],
+                    scroll=ft.ScrollMode.AUTO  # 👈 scrollbar at edge
                 )
             )
         ]
