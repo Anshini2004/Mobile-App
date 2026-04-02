@@ -190,7 +190,6 @@ def bookings_page(page: ft.Page):
         content=ft.Row(alignment=ft.MainAxisAlignment.SPACE_AROUND, controls=[
             nav_btn(ft.Icons.GRID_VIEW, "Catalogue"),
             nav_btn(ft.Icons.FAVORITE_BORDER, "Wishlist"),
-            nav_btn(ft.Icons.FEED_OUTLINED, "Feed"),
             nav_btn(ft.Icons.CONFIRMATION_NUMBER, "My Bookings", active=True),
             nav_btn(ft.Icons.PERSON_OUTLINE, "Profile"),
         ])
