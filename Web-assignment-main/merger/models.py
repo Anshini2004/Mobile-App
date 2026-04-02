@@ -138,7 +138,7 @@ class Booking(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=Q(date__gt=F("created_at")),
+                condition=Q(date__gt=F("created_at")),
                 name="booking_date_after_creation"
             ),
         ]
@@ -220,7 +220,7 @@ class BookingReview(models.Model):
         ordering = ["-created_at"]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(rating__gte=1, rating__lte=5),
+                condition=models.Q(rating__gte=1, rating__lte=5),
                 name="bookingreview_rating_between_1_and_5",
             ),
         ]
