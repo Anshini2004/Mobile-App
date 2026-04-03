@@ -1,11 +1,10 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import make_password
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db.models import Avg, Q
 import json
 
 from ..models import (
@@ -13,6 +12,14 @@ from ..models import (
     BookingReview, Notification
 )
 
+from .serializers import (
+    UserSerializer,
+    ActivitySerializer,
+    BookingSerializer,
+    PaymentSerializer,
+    BookingReviewSerializer,
+    NotificationSerializer
+)
 
 # ---------------------------
 # AUTH APIs
@@ -31,15 +38,12 @@ def signup_api(request):
         if User.objects.filter(email=data.get("email")).exists():
             return JsonResponse({"error": "Email already exists"}, status=400)
 
-        user = User.objects.create(
-            email=data.get("email"),
-            username=data.get("email"),
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            password=make_password(data.get("password"))
-        )
-
-        return JsonResponse({"message": "User created", "user_id": user.id})
+        serializer = UserSerializer(data=data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return JsonResponse({"message": "User created", "user_id": user.id})
+        
+        return JsonResponse(serializer.errors, status=400)
 
 
 @csrf_exempt
@@ -58,33 +62,8 @@ def login_api(request):
                 "message": "Login successful",
                 "user_id": user.id
             })
+
         return JsonResponse({"error": "Invalid credentials"}, status=400)
-
-
-# ---------------------------
-# HOMEPAGE DATA
-# ---------------------------
-
-def homepage_api(request):
-    def get_stats(activity_type):
-        reviews = BookingReview.objects.filter(
-            booking__activity__activity_type=activity_type,
-            is_deleted=False
-        )
-        return {
-            "avg": round(reviews.aggregate(avg=Avg('rating'))['avg'] or 0, 1),
-            "total": reviews.count()
-        }
-
-    data = {
-        "catamaran": get_stats("Catamaran"),
-        "scuba": get_stats("Scuba diving"),
-        "dolphin": get_stats("Dolphin watching"),
-        "ski": get_stats("Water ski"),
-        "boat": get_stats("Speed boat"),
-    }
-
-    return JsonResponse(data)
 
 
 # ---------------------------
@@ -93,18 +72,8 @@ def homepage_api(request):
 
 def activities_api(request):
     activities = Activity.objects.all()
-
-    data = []
-    for act in activities:
-        data.append({
-            "id": act.id,
-            "name": act.name,
-            "type": act.activity_type,
-            "price": act.base_price,
-            "location": act.location
-        })
-
-    return JsonResponse({"activities": data})
+    serializer = ActivitySerializer(activities, many=True)
+    return JsonResponse(serializer.data, safe=False)
 
 
 # ---------------------------
@@ -113,18 +82,8 @@ def activities_api(request):
 
 def user_bookings_api(request, user_id):
     bookings = Booking.objects.filter(customer_id=user_id)
-
-    data = []
-    for b in bookings:
-        data.append({
-            "id": b.id,
-            "activity": b.activity.name,
-            "date": b.date,
-            "status": b.status,
-            "price": b.price_total
-        })
-
-    return JsonResponse({"bookings": data})
+    serializer = BookingSerializer(bookings, many=True)
+    return JsonResponse(serializer.data, safe=False)
 
 
 @csrf_exempt
@@ -132,21 +91,31 @@ def create_booking_api(request):
     if request.method == "POST":
         data = json.loads(request.body)
 
-        try:
-            activity = Activity.objects.get(id=data.get("activity_id"))
-
-            booking = Booking.objects.create(
-                customer_id=data.get("user_id"),
-                activity=activity,
-                date=data.get("date"),
-                group_size=data.get("group_size")
-            )
-
+        serializer = BookingSerializer(data=data)
+        if serializer.is_valid():
+            booking = serializer.save()
             return JsonResponse({
                 "message": "Booking created",
                 "booking_id": booking.id
             })
 
+        return JsonResponse(serializer.errors, status=400)
+
+@csrf_exempt
+def cancel_booking_api(request, booking_id):
+    if request.method == "PATCH":
+        try:
+            booking = Booking.objects.get(id=booking_id)
+            if booking.status != "CONFIRMED":
+                return JsonResponse(
+                    {"error": "Only confirmed bookings can be cancelled"},
+                    status=400
+                )
+            booking.status = "CANCELLED"
+            booking.save()
+            return JsonResponse({"message": "Booking cancelled", "id": booking.id})
+        except Booking.DoesNotExist:
+            return JsonResponse({"error": "Booking not found"}, status=404)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
 
@@ -161,9 +130,9 @@ def payment_api(request):
         data = json.loads(request.body)
 
         try:
-            booking = Booking.objects.get(id=data.get("booking_id"))
+            booking = Booking.objects.get(id=data.get("booking"))
 
-            Payment.objects.create(
+            payment = Payment.objects.create(
                 booking=booking,
                 amount=booking.price_total,
                 status="PAID",
@@ -173,7 +142,9 @@ def payment_api(request):
             booking.status = "CONFIRMED"
             booking.save()
 
-            return JsonResponse({"message": "Payment successful"})
+            serializer = PaymentSerializer(payment)
+
+            return JsonResponse(serializer.data)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
@@ -188,25 +159,15 @@ def review_api(request):
     if request.method == "POST":
         data = json.loads(request.body)
 
-        try:
-            booking = Booking.objects.get(id=data.get("booking_id"))
-
-            review, created = BookingReview.objects.update_or_create(
-                booking=booking,
-                defaults={
-                    "customer_id": data.get("user_id"),
-                    "rating": data.get("rating"),
-                    "comment": data.get("comment")
-                }
-            )
-
+        serializer = BookingReviewSerializer(data=data)
+        if serializer.is_valid():
+            review = serializer.save()
             return JsonResponse({
                 "message": "Review saved",
-                "created": created
+                "id": review.id
             })
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+        return JsonResponse(serializer.errors, status=400)
 
 
 # ---------------------------
@@ -220,22 +181,12 @@ def profile_update_api(request, user_id):
 
         user = User.objects.get(id=user_id)
 
-        if "email" in data:
-            try:
-                validate_email(data["email"])
-                user.email = data["email"]
-            except ValidationError:
-                return JsonResponse({"error": "Invalid email"}, status=400)
+        serializer = UserSerializer(user, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({"message": "Profile updated"})
 
-        if "password" in data:
-            user.password = make_password(data["password"])
-
-        user.first_name = data.get("first_name", user.first_name)
-        user.last_name = data.get("last_name", user.last_name)
-
-        user.save()
-
-        return JsonResponse({"message": "Profile updated"})
+        return JsonResponse(serializer.errors, status=400)
 
 
 # ---------------------------
@@ -244,19 +195,5 @@ def profile_update_api(request, user_id):
 
 def notifications_api(request, user_id):
     notes = Notification.objects.filter(user_id=user_id)
-
-    data = []
-    for n in notes:
-        parts = n.message.split("|||")
-        data.append({
-            "title": n.title,
-            "message": parts[0],
-            "details": parts[1] if len(parts) > 1 else "",
-            "date": n.created_at
-        })
-
-    return JsonResponse({"notifications": data})
-
-
-
-
+    serializer = NotificationSerializer(notes, many=True)
+    return JsonResponse(serializer.data, safe=False)

@@ -16,8 +16,7 @@ def main(page: ft.Page):
     page.window.width = 550
     page.window.height = 900
 
-    page.add(
-        bookings_page(page)
+    page.add(bookings_page(page, user_id=8)
     )
 
 ft.run(main)

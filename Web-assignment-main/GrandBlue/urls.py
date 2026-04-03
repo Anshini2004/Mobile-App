@@ -22,7 +22,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('grandblue/', include('merger.urls')),
-    path('chatbot/', include('chatbot.urls')),
+    path('api/', include('merger.api.urls')),
+    path('chatbot/', include('chatbot.urls'))
 ]
 
 if settings.DEBUG:
