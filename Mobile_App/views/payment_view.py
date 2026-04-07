@@ -1,9 +1,21 @@
 import flet as ft
+import requests
 import re
 from datetime import datetime
+import asyncio
+
+BASE_URL = "http://127.0.0.1:8000"
 
 
-def payment_view(page, booking_data):
+def payment_view(page: ft.Page):
+    booking_data = page.session.store.get("booking_data") or {}
+
+    activity_name = booking_data.get("activity_name", "Activity")
+    activity_id = booking_data.get("activity_id", "")
+    book_date = booking_data.get("date", "")
+    book_time = booking_data.get("time", "")
+    num_people = booking_data.get("num_people", 1)
+    total_price = booking_data.get("total_price", 0)
 
     PRIMARY = "#0A2540"
     BG = "#F5F5F5"
@@ -12,23 +24,32 @@ def payment_view(page, booking_data):
     TEXT_MUTED = "#2E2E2E"
 
     def go_back(e):
-        page.go("/")
+        if activity_id:
+            page.go(f"/activity/{activity_id}")
+        else:
+            page.go("/")
 
-    # ── Section Card ─────────────────────
     def section(title, content):
         return ft.Container(
             bgcolor=CARD,
             border_radius=14,
             border=ft.border.all(1, BORDER),
             padding=16,
-            content=ft.Column([
-                ft.Text(title.upper(), size=11, weight=ft.FontWeight.BOLD, color=TEXT_MUTED),
-                ft.Container(height=10),
-                content
-            ], spacing=0)
+            content=ft.Column(
+                [
+                    ft.Text(
+                        title.upper(),
+                        size=11,
+                        weight=ft.FontWeight.BOLD,
+                        color=TEXT_MUTED,
+                    ),
+                    ft.Container(height=10),
+                    content,
+                ],
+                spacing=0,
+            ),
         )
 
-    # ── Input ─────────────────────
     def input_field(label, hint, width=None):
         return ft.TextField(
             label=label,
@@ -42,7 +63,6 @@ def payment_view(page, booking_data):
             color="#000000",
         )
 
-    # ── Payment Logos ─────────────────────
     def method(image_url, selected=False):
         return ft.Container(
             expand=True,
@@ -65,74 +85,74 @@ def payment_view(page, booking_data):
             method("https://cdn-icons-png.flaticon.com/512/196/196561.png"),
             method("https://cdn-icons-png.flaticon.com/512/174/174861.png"),
         ],
-        spacing=10
+        spacing=10,
     )
 
-    # ── Step Bar ─────────────────────
     step_bar = ft.Row(
         [
-            ft.Row([
-                ft.Container(
-                    width=30,
-                    height=30,
-                    border_radius=15,
-                    bgcolor=PRIMARY,
-                    alignment=ft.alignment.Alignment(0, 0),
-                    content=ft.Text("1", color="white")
-                ),
-                ft.Text("Payment", color=TEXT_MUTED)
-            ], spacing=8),
-
+            ft.Row(
+                [
+                    ft.Container(
+                        width=30,
+                        height=30,
+                        border_radius=15,
+                        bgcolor=PRIMARY,
+                        alignment=ft.alignment.Alignment(0, 0),
+                        content=ft.Text("1", color="white"),
+                    ),
+                    ft.Text("Payment", color=TEXT_MUTED),
+                ],
+                spacing=8,
+            ),
             ft.Container(expand=True, height=1, bgcolor=BORDER),
-
-            ft.Row([
-                ft.Container(
-                    width=30,
-                    height=30,
-                    border_radius=15,
-                    border=ft.border.all(1, BORDER),
-                    alignment=ft.alignment.Alignment(0, 0),
-                    content=ft.Text("2", color=TEXT_MUTED)
-                ),
-                ft.Text("Confirm", color=TEXT_MUTED)
-            ], spacing=8),
+            ft.Row(
+                [
+                    ft.Container(
+                        width=30,
+                        height=30,
+                        border_radius=15,
+                        border=ft.border.all(1, BORDER),
+                        alignment=ft.alignment.Alignment(0, 0),
+                        content=ft.Text("2", color=TEXT_MUTED),
+                    ),
+                    ft.Text("Confirm", color=TEXT_MUTED),
+                ],
+                spacing=8,
+            ),
         ],
-        vertical_alignment=ft.CrossAxisAlignment.CENTER
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # ── Inputs ─────────────────────
     card_number = input_field("Card number", "1234 5678 9012 3456")
     card_name = input_field("Cardholder name", "Full name as on card")
     expiry = input_field("MM / YY", "Expiry Date", 150)
     cvv = input_field("CVV", "•••", 120)
 
-    # ── Formatters ─────────────────────
     def format_card(e):
-        raw = re.sub(r"\D", "", e.control.value)[:16]
-        e.control.value = " ".join(raw[i:i+4] for i in range(0, len(raw), 4))
+        raw = re.sub(r"\D", "", e.control.value or "")[:16]
+        e.control.value = " ".join(raw[i:i + 4] for i in range(0, len(raw), 4))
         e.control.update()
 
     def format_expiry(e):
-        raw = re.sub(r"\D", "", e.control.value)[:4]
+        raw = re.sub(r"\D", "", e.control.value or "")[:4]
         e.control.value = raw[:2] + "/" + raw[2:] if len(raw) >= 3 else raw
         e.control.update()
 
     def format_cvv(e):
-        e.control.value = re.sub(r"\D", "", e.control.value)[:3]
+        e.control.value = re.sub(r"\D", "", e.control.value or "")[:3]
         e.control.update()
 
     card_number.on_change = format_card
     expiry.on_change = format_expiry
     cvv.on_change = format_cvv
 
-    # ── Validation ─────────────────────
     def validate():
         card_number.error_text = None
         card_name.error_text = None
         expiry.error_text = None
         cvv.error_text = None
 
-        if not card_name.value or not re.fullmatch(r"[A-Za-z ]+", card_name.value):
+        if not card_name.value or not re.fullmatch(r"[A-Za-z ]+", card_name.value.strip()):
             card_name.error_text = "Enter valid name"
             return "Cardholder name is invalid"
 
@@ -151,24 +171,26 @@ def payment_view(page, booking_data):
             year = int("20" + yy.strip())
             now = datetime.now()
 
+            if month < 1 or month > 12:
+                expiry.error_text = "MM/YY"
+                return "Expiry must be in MM/YY format"
+
             if year < now.year or (year == now.year and month < now.month):
                 expiry.error_text = "Expired"
                 return "Card expiry date is invalid or expired"
-        except:
+        except Exception:
             expiry.error_text = "MM/YY"
             return "Expiry must be in MM/YY format"
 
         return None
 
-    # ── Snackbar ─────────────────────
     def show_error(message):
         snack = ft.SnackBar(content=ft.Text(message), bgcolor="#D32F2F")
         page.overlay.append(snack)
         snack.open = True
         page.update()
 
-    # ── Handler ─────────────────────
-    def handle_payment(e):
+    async def handle_payment(e):
         error = validate()
         card_number.update()
         card_name.update()
@@ -179,43 +201,88 @@ def payment_view(page, booking_data):
             show_error(error)
             return
 
-        snack = ft.SnackBar(content=ft.Text("Processing payment..."), bgcolor=PRIMARY)
-        page.overlay.append(snack)
-        snack.open = True
+        processing_snack = ft.SnackBar(
+            content=ft.Text("Processing payment..."),
+            bgcolor=PRIMARY,
+        )
+        page.overlay.append(processing_snack)
+        processing_snack.open = True
         page.update()
 
-        booking_id = "BK12345"
-        page.go(f"/success/{booking_id}")
+        try:
+            resp = await asyncio.to_thread(
+                requests.post,
+                f"{BASE_URL}/api/payment/",
+                json={
+                    "activity_id": activity_id,
+                    "booking_date": book_date,
+                    "num_people": num_people,
+                    "card_number": card_number.value,
+                    "card_name": card_name.value.strip(),
+                    "expiry_date": expiry.value.strip(),
+                    "cvv": cvv.value,
+                },
+                timeout=15,
+            )
 
-    # ── Sections ─────────────────────
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+
+            if resp.status_code == 200 and data.get("status") == "success":
+                if page.session.store.contains_key("booking_data"):
+                    page.session.store.remove("booking_data")
+
+                booking_id = str(data.get("booking_id", ""))
+                page.go(f"/success/{booking_id}")
+            else:
+                err_msg = data.get("error") or str(data.get("errors", "Payment failed."))
+                show_error(err_msg)
+
+        except requests.ConnectionError:
+            show_error("Cannot connect to server.")
+        except Exception as ex:
+            show_error(str(ex))
+
     card_section = section(
         "Card details",
-        ft.Column([
-            card_number,
-            card_name,
-            ft.Row([expiry, cvv], spacing=10)
-        ], spacing=10)
+        ft.Column(
+            [
+                card_number,
+                card_name,
+                ft.Row([expiry, cvv], spacing=10),
+            ],
+            spacing=10,
+        ),
     )
 
     def row(label, value, bold=False):
         return ft.Row(
             [
                 ft.Text(label, color=TEXT_MUTED),
-                ft.Text(value, color="#000000",
-                        weight=ft.FontWeight.BOLD if bold else None)
+                ft.Text(
+                    value,
+                    color="#000000",
+                    weight=ft.FontWeight.BOLD if bold else None,
+                ),
             ],
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         )
 
     summary = section(
         "Order summary",
-        ft.Column([
-            row("Activity", booking_data["activity_name"]),
-            row("Date", str(booking_data["date"])),
-            row("Guests", f"{booking_data['num_people']} people"),
-            ft.Divider(),
-            row("Total", f"Rs {booking_data['total_price']}", True)
-        ], spacing=8)
+        ft.Column(
+            [
+                row("Activity", activity_name),
+                row("Date", str(book_date)),
+                row("Time", str(book_time) if book_time else "—"),
+                row("Guests", f"{num_people} people"),
+                ft.Divider(),
+                row("Total", f"Rs {total_price}", True),
+            ],
+            spacing=8,
+        ),
     )
 
     pay_button = ft.Container(
@@ -228,11 +295,10 @@ def payment_view(page, booking_data):
             "Confirm & pay →",
             color="white",
             size=16,
-            weight=ft.FontWeight.W_600
-        )
+            weight=ft.FontWeight.W_600,
+        ),
     )
 
-    # ── FINAL FIXED LAYOUT ─────────────────────
     return ft.View(
         route="/payment",
         bgcolor=BG,
@@ -242,34 +308,33 @@ def payment_view(page, booking_data):
                 content=ft.Column(
                     [
                         ft.Container(
-                            padding=20,  # 👈 content padding stays
+                            padding=20,
                             content=ft.Column(
                                 [
-                                    ft.Row([
-                                        ft.TextButton("← Back", on_click=go_back)
-                                    ]),
-
+                                    ft.Row(
+                                        [
+                                            ft.TextButton("← Back", on_click=go_back)
+                                        ]
+                                    ),
                                     ft.Text("CHECKOUT", size=12, color=TEXT_MUTED),
-
                                     ft.Text(
                                         "Complete your booking",
                                         size=22,
                                         weight=ft.FontWeight.BOLD,
-                                        color="#000000"
+                                        color="#000000",
                                     ),
-
                                     step_bar,
                                     section("Payment method", methods),
                                     card_section,
                                     summary,
-                                    pay_button
+                                    pay_button,
                                 ],
                                 spacing=18,
-                            )
+                            ),
                         )
                     ],
-                    scroll=ft.ScrollMode.AUTO  # 👈 scrollbar at edge
-                )
+                    scroll=ft.ScrollMode.AUTO,
+                ),
             )
-        ]
+        ],
     )
