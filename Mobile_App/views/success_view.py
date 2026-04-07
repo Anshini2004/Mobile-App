@@ -82,6 +82,7 @@ def success_view(page, booking_id):
                 ),
             ],
             spacing=5,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
     )
 
@@ -112,7 +113,7 @@ def success_view(page, booking_id):
                     width=380,
                     content=ft.Column(
                         [
-                            ft.Row([ft.TextButton("← Home", on_click=go_home)]),
+                            
                             ft.Text("CHECKOUT", size=12, color=TEXT_MUTED),
                             ft.Text(
                                 "Complete your booking",
