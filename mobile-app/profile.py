@@ -58,27 +58,6 @@ async def main(page: ft.Page):
 
     user_data = await get_current_user()
 
-    # ── App Bar ───────────────────────────────────────────────────────────────
-    app_bar = ft.Container(
-        content=ft.Row(
-            [
-                ft.Icon(ft.Icons.WAVES, color=TEAL, size=26),
-                ft.Text(
-                    "Grand Blue",
-                    size=18,
-                    weight=ft.FontWeight.BOLD,
-                    color=TEAL_DARK,
-                    expand=True,
-                    text_align=ft.TextAlign.START,
-                ),
-            ],
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-        ),
-        bgcolor=CARD_BG,
-        padding=ft.padding.symmetric(horizontal=20, vertical=14),
-        shadow=ft.BoxShadow(blur_radius=6, color="#1a006479", offset=ft.Offset(0, 2)),
-    )
-
     # ── Avatar ────────────────────────────────────────────────────────────────
     full_name = f"{user_data.get('first_name','')} {user_data.get('last_name','')}"
     email = user_data.get('email','')
@@ -210,6 +189,7 @@ async def main(page: ft.Page):
 
     async def save_changes(e):
         headers = {"Authorization": f"Token {USER_TOKEN}"}
+
         def get_field(label):
             return next(f for f in form_fields if f["label"] == label)["tf"].value.strip()
 
@@ -224,22 +204,52 @@ async def main(page: ft.Page):
         password_value = get_field("PASSWORD")
         if password_value:
             payload["password"] = password_value
+
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.patch(f"{API_BASE_URL}users/{user_data['id']}/", json=payload, headers=headers)
+                resp = await client.patch(
+                    f"{API_BASE_URL}users/{user_data['id']}/",
+                    json=payload,
+                    headers=headers
+                )
                 resp.raise_for_status()
+
+                # SUCCESS POPUP
+                success_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("Success"),
+                    content=ft.Text("Successfully saved changes"),
+                    actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
+                )
+                page.show_dialog(success_dialog)
+
+                # disable fields again
                 for f in form_fields:
                     f["tf"].disabled = True
+
                 save_btn.disabled = True
                 edit_btn.disabled = False
                 update_button_styles()
+
         except httpx.HTTPStatusError as ex:
-            print("STATUS:", ex.response.status_code)
-            print("RESPONSE TEXT:", ex.response.text)
-            try:
-                print("JSON ERROR:", ex.response.json())
-            except:
-                print("No JSON response")
+            # FAILURE POPUP (API error)
+            error_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Error"),
+                content=ft.Text(f"Failed to save changes\nStatus: {ex.response.status_code}"),
+                actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
+            )
+            page.show_dialog(error_dialog)
+
+        except Exception as ex:
+            # FAILURE POPUP (other error)
+            error_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Error"),
+                content=ft.Text(f"Something went wrong:\n{ex}"),
+                actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())],
+            )
+            page.show_dialog(error_dialog)
 
     save_btn = ft.Container(
         content=ft.Row(
@@ -378,4 +388,4 @@ async def main(page: ft.Page):
         spacing=0,
     )
 
-    page.add(ft.Column([app_bar, body, bottom_nav], spacing=0, expand=True))
+    page.add(ft.Column([body, bottom_nav], spacing=0, expand=True))
