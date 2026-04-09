@@ -110,10 +110,10 @@ def splash_view(page: ft.Page):
 
                                             # RIGHT SIDE
                                             ft.Container(
-                                                width=130,
+                                                width=80,
                                                 alignment=ft.alignment.Alignment(1, 0),
                                                 content=ft.TextButton(
-                                                    "Create Account",
+                                                    "Sign Up",
                                                     on_click=lambda e: page.go("/register"),
                                                     style=ft.ButtonStyle(color="white70"),
                                                 ),
