@@ -12,7 +12,7 @@ from merger.models import Activity, Booking, Payment
 from django.contrib.auth import get_user_model
 
 from .serializers import (
-    PaymentAPISerializer,
+    PaymentSerializer,
     ActivityListSerializer,
     ActivityDetailSerializer,
     BookingCreateSerializer,
@@ -23,51 +23,79 @@ User = get_user_model()
 
 # ── Payment ───────────────────────────────────────────────────────────────────
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def process_payment(request):
-    serializer = PaymentAPISerializer(data=request.data)
+from django.utils.timezone import now
+from rest_framework import viewsets
+from rest_framework.response import Response
+from merger.models import Booking, Payment
+from .serializers import PaymentSerializer
+from django.contrib.auth import get_user_model
 
-    if not serializer.is_valid():
-        return Response({"errors": serializer.errors}, status=400)
-
-    data = serializer.validated_data
-
-    try:
-        activity = get_object_or_404(Activity, id=data['activity_id'])
-
-        # TEMP: use first user until auth is wired up
-        default_user = User.objects.first()
-        if not default_user:
-            return Response({"error": "No users found in database"}, status=400)
-
-        booking = Booking.objects.create(
-            customer=default_user,
-            activity=activity,
-            date=data['booking_date'],
-            group_size=data['num_people'],
-            status=Booking.Status.CONFIRMED,
-        )
-
-        payment = Payment.objects.create(
-            booking=booking,
-            amount=booking.price_total,
-            method=Payment.Method.CARD,
-            status=Payment.Status.PAID,
-            provider="Mobile App",
-            paid_at=timezone.now(),
-        )
-
-        return Response({
-            "status":     "success",
-            "booking_id": booking.id,
-            "amount":     str(booking.price_total),   # Decimal → string for JSON
-        })
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+User = get_user_model()
 
 
+class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = Payment.objects.select_related("booking")
+    serializer_class = PaymentSerializer
+
+    def create(self, request, *args, **kwargs):
+        try:
+            activity_id = request.data.get("activity_id")
+            date        = request.data.get("booking_date")
+            num_people  = request.data.get("num_people")
+
+            # ── Validation ───────────────────────────────────────────────────
+            if not activity_id:
+                return Response({"error": "activity_id is required"}, status=400)
+
+            if not date:
+                return Response({"error": "booking_date is required"}, status=400)
+
+            if not num_people:
+                return Response({"error": "num_people is required"}, status=400)
+
+            # ── Customer ─────────────────────────────────────────────────────
+            # TODO: replace this with request.user once login is integrated
+            if request.user.is_authenticated:
+                customer = request.user
+            else:
+                # Temporary fallback for testing without login
+                # Uses the first superuser/staff account in the DB
+                customer = User.objects.filter(is_staff=True).first()
+                if not customer:
+                    return Response(
+                        {"error": "No test user found. Create a superuser first: python manage.py createsuperuser"},
+                        status=500,
+                    )
+
+            # ── Create Booking ───────────────────────────────────────────────
+            booking = Booking.objects.create(
+                activity_id=activity_id,
+                date=date,
+                group_size=int(num_people),
+                customer=customer,
+            )
+
+            # ── Create Payment ───────────────────────────────────────────────
+            payment = Payment.objects.create(
+                booking=booking,
+                amount=booking.price_total,
+                method="CARD",
+                provider="FletPay",
+                status="PAID",
+                paid_at=now(),
+            )
+
+            return Response(
+                {
+                    "status": "success",
+                    "booking_id": booking.id,
+                    "payment_id": payment.id,
+                },
+                status=200,
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 # ── Activities ────────────────────────────────────────────────────────────────
 
 class ActivityListView(generics.ListAPIView):

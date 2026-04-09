@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db.models import Avg
 
-from merger.models import Activity, ActivityImage, ActivityHighlight, Booking, BookingReview
+from merger.models import Activity, ActivityImage, ActivityHighlight, Booking, BookingReview,Payment
 
 
 # ── Activity Image ────────────────────────────────────────────────────────────
@@ -115,14 +115,11 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
 
 # ── Payment ───────────────────────────────────────────────────────────────────
 
-class PaymentAPISerializer(serializers.Serializer):
-    activity_id  = serializers.IntegerField()
-    booking_date = serializers.DateField()
-    num_people   = serializers.IntegerField()
-    card_number  = serializers.CharField()
-    card_name    = serializers.CharField()
-    expiry_date  = serializers.CharField()
-    cvv          = serializers.CharField()
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = "__all__"
+        read_only_fields = ["status", "paid_at"]
 
 
 # ── Booking Create ────────────────────────────────────────────────────────────

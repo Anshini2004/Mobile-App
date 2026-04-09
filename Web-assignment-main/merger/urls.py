@@ -73,5 +73,6 @@ urlpatterns = [
     
     
     
-     path('api/', include('merger.api.urls')),
+    path('api/', include('merger.api.urls')),
+     
 ]

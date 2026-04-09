@@ -1,21 +1,20 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 from .views import (
-    process_payment,
+    PaymentViewSet,
     ActivityListView,
     ActivityDetailView,
-    BookingCreateView,
+    BookingCreateView
 )
 
+router = DefaultRouter()
+router.register(r'payments', PaymentViewSet, basename='payments')
+
 urlpatterns = [
-    # POST /api/payment/
-    path("payment/", process_payment, name="payment"),
+    path("", include(router.urls)),
 
-    # GET  /api/activities/
-    path("activities/", ActivityListView.as_view(), name="activity-list"),
-
-    # GET  /api/activities/<pk>/
-    path("activities/<int:pk>/", ActivityDetailView.as_view(), name="activity-detail"),
-
-    # POST /api/bookings/
-    path("bookings/", BookingCreateView.as_view(), name="booking-create"),
+    path("activities/", ActivityListView.as_view()),
+    path("activities/<int:pk>/", ActivityDetailView.as_view()),
+    path("bookings/", BookingCreateView.as_view()),
 ]

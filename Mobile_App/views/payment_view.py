@@ -212,11 +212,12 @@ def payment_view(page: ft.Page):
         try:
             resp = await asyncio.to_thread(
                 requests.post,
-                f"{BASE_URL}/api/payment/",
+                f"{BASE_URL}/api/payments/",
                 json={
                     "activity_id": activity_id,
                     "booking_date": book_date,
                     "num_people": num_people,
+                    "amount": total_price,          # ✅ FIX: added missing field
                     "card_number": card_number.value,
                     "card_name": card_name.value.strip(),
                     "expiry_date": expiry.value.strip(),
