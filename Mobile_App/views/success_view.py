@@ -10,7 +10,7 @@ def success_view(page, booking_id):
     TEXT_MUTED = "#2E2E2E"
 
     def go_home(e):
-        page.go("/")
+        page.go("/home")
 
     step_bar = ft.Row(
         [
