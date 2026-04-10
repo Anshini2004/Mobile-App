@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from merger.models import User
+from merger.models import User, Activity
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
@@ -29,3 +29,29 @@ class UserSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'name',
+            'location',
+            'activity_type',
+            'description',
+            'image'
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        first_image = obj.images.first()
+
+        if first_image and first_image.image:
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+
+        return None
