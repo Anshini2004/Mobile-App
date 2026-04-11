@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 from django.contrib.auth import views as auth_views
 from .shared_views import (
     CustomersPageView,
@@ -69,4 +69,6 @@ urlpatterns = [
          name='password_reset_complete'),
     
     path('signup/termsandcondition/', views.terms_and_condition, name='termsandcondition'),
+
+    path('api/', include('merger.api.urls')),
 ]
