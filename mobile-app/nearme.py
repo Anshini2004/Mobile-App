@@ -1,7 +1,7 @@
-#INSTRUCTION TO RUN WITHOUT AUTHENTICATION,1st, SEARCH "headers = {" in method fetch_activities, make it empty, headers = {}
-#2nd, remove "permission_classes = [permissions.IsAuthenticated]" from web-assignment-main/merger/api/viewsets.py in class ActivityViewSet
+#to test this without logging in, remove isauthenticated line from ActivityViewSet in merger/api/viewsets.py, then in this file, remove the content of headers, search, "headers = {"
 import flet as ft
 import flet_map as ftm
+import flet_geolocator as ftg 
 import httpx
 import math
 
@@ -46,6 +46,15 @@ async def main(page: ft.Page):
     page.spacing = 0
 
     # ─────────────────────────────
+    # GEOLOCATOR (GPS)
+    # ─────────────────────────────
+    geo = ftg.Geolocator()
+    
+
+    # store all activity coordinates for "near me"
+    activity_coords = []
+
+    # ─────────────────────────────
     # MAP LAYER
     # ─────────────────────────────
     marker_layer = ftm.MarkerLayer(markers=[])
@@ -69,7 +78,7 @@ async def main(page: ft.Page):
 
     def build_popup(activity: dict):
         return ft.Container(
-            height= 350,
+            height=350,
             width=340,
             padding=16,
             border_radius=18,
@@ -82,28 +91,28 @@ async def main(page: ft.Page):
                     ft.Image(
                         src=activity["image"],
                         height=170,
-                        fit=ft.BoxFit.CONTAIN,   # FIX: ImageFit -> BoxFit
+                        fit=ft.BoxFit.CONTAIN,
                     ),
                     ft.Text(
                         activity["name"],
                         size=18,
                         weight=ft.FontWeight.BOLD,
                         text_align=ft.TextAlign.CENTER,
-                        color = ft.Colors.BLACK,
+                        color = ft.Colors.BLACK
                     ),
                     ft.Text(
                         activity["description"],
                         size=12,
                         text_align=ft.TextAlign.CENTER,
-                        color = ft.Colors.BLACK,
+                        color = ft.Colors.BLACK
                     ),
                     ft.Row(
                         alignment=ft.MainAxisAlignment.CENTER,
                         controls=[
                             ft.ElevatedButton(
                                 "Book Now",
-                                on_click=lambda e: None,  # placeholder
-                                color = ft.Colors.WHITE,
+                                on_click=lambda e: None,
+                                color = ft.Colors.WHITE
                             ),
                             ft.TextButton(
                                 "Close",
@@ -121,10 +130,82 @@ async def main(page: ft.Page):
         page.update()
 
     # ─────────────────────────────
+    # NEAR ME LOGIC
+    # ─────────────────────────────
+    async def go_to_nearest():
+        perm = await geo.request_permission()
+
+        if perm not in (
+            ftg.GeolocatorPermissionStatus.WHILE_IN_USE,
+            ftg.GeolocatorPermissionStatus.ALWAYS,
+        ):
+            await geo.open_location_settings()
+            return
+
+        # try fast first
+        pos = await geo.get_last_known_position()
+
+        if not pos:
+            pos = await geo.get_current_position()
+
+        if not pos:
+            return
+
+        user_lat, user_lon = pos.latitude, pos.longitude
+
+        closest = None
+        min_dist = float("inf")
+
+        for item in activity_coords:
+            d = await geo.distance_between(
+                user_lat,
+                user_lon,
+                item["lat"],
+                item["lon"],
+            )
+
+            if d < min_dist:
+                min_dist = d
+                closest = item
+
+        if closest:
+            await map_view.move_to(
+                destination=ftm.MapLatitudeLongitude(
+                    closest["lat"],
+                    closest["lon"],
+                ),
+                zoom=15,
+            )
+
+            show_popup(closest["activity"])
+
+    def show_near_me_dialog():
+        dialog = ft.AlertDialog(
+            title=ft.Text("Use your location?"),
+            content=ft.Text("Allow GPS to find nearest activity?"),
+            actions=[
+                ft.TextButton(
+                    "No",
+                    on_click=lambda e: page.pop_dialog()
+                ),
+                ft.TextButton(
+                    "Yes",
+                    on_click=lambda e: (
+                        page.pop_dialog(),
+                        page.run_task(go_to_nearest)
+                    )
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        page.show_dialog(dialog)
+
+    # ─────────────────────────────
     # FETCH ACTIVITIES
     # ─────────────────────────────
     async def fetch_activities():
-        headers = {} # remove the inside to test without logging in. headers = {"Authorization": f"Token {TOKEN}"}
+        headers = {"Authorization": f"Token {TOKEN}"}  # remove the inside to test without authentication. headers = {"Authorization": f"Token {TOKEN}"}
 
         async with httpx.AsyncClient() as client:
             res = await client.get(API_URL, headers=headers)
@@ -133,6 +214,7 @@ async def main(page: ft.Page):
             activities = res.json()
 
             markers = []
+            activity_coords.clear()
 
             # ─────────────────────────────
             # GROUP BY LOCATION
@@ -161,11 +243,18 @@ async def main(page: ft.Page):
                     # ─────────────────────────────
                     # SPREAD IN SMALL CIRCLE
                     # ─────────────────────────────
-                    angle = (i / max(len(acts), 1)) * 6.28318  # 2π
-                    offset = 0.0007  # tweak this for spacing
+                    angle = (i / max(len(acts), 1)) * 6.28318
+                    offset = 0.0007
 
                     lat = base_lat + offset * math.sin(angle)
                     lon = base_lon + offset * math.cos(angle)
+
+                    # store for GPS nearest calculation
+                    activity_coords.append({
+                        "activity": act,
+                        "lat": lat,
+                        "lon": lon
+                    })
 
                     def make_marker(activity=act, lat=lat, lon=lon):
 
@@ -174,13 +263,13 @@ async def main(page: ft.Page):
 
                         return ftm.Marker(
                             coordinates=ftm.MapLatitudeLongitude(lat, lon),
-                            content=ft.Container( 
-                                border_radius=12, 
+                            content=ft.Container(
+                                border_radius=12,
                                 bgcolor=ft.Colors.WHITE,
                                 shadow=ft.BoxShadow(blur_radius=10),
                                 ink=True,
                                 on_click=on_click,
-                                content=ft.Image(src=activity["image"],),
+                                content=ft.Image(src=activity["image"]),
                             ),
                         )
 
@@ -205,7 +294,15 @@ async def main(page: ft.Page):
     )
 
     # ─────────────────────────────
-    # UI STACK (MAP + POPUP)
+    # NEAR ME BUTTON
+    # ─────────────────────────────
+    near_me_btn = ft.FloatingActionButton(
+        icon=ft.Icons.MY_LOCATION,
+        on_click=lambda e: show_near_me_dialog()
+    )
+
+    # ─────────────────────────────
+    # UI STACK (MAP + POPUP + BUTTON)
     # ─────────────────────────────
     page.add(
         ft.Stack(
@@ -213,6 +310,13 @@ async def main(page: ft.Page):
             controls=[
                 map_view,
                 popup_container,
+
+                # floating "near me" button
+                ft.Container(
+                    near_me_btn,
+                    right=20,
+                    bottom=20,
+                ),
             ],
         )
     )

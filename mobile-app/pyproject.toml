@@ -1,6 +1,20 @@
+[project]
+name = "nearme"
+version = "1.0.0"
+description = "Near Me App"
+requires-python = ">=3.10"
+dependencies = [
+    "flet>=0.82.0",
+    "flet-geolocator>=0.1.0"
+]
+
 [tool.flet]
-modules = ["flet_geolocator"]
+permissions = ["location"]
 
 [tool.flet.android.permission]
 "android.permission.ACCESS_FINE_LOCATION" = true
 "android.permission.ACCESS_COARSE_LOCATION" = true
+
+[tool.flet.flutter.dependencies]
+flet_map = "*"
+flet_geolocator = "*"
