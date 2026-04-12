@@ -42,7 +42,11 @@ def bookings_page(page: ft.Page, user_id: int = 1):
     active_filter = {"value": "ALL"}
 
     # ── Dialog ────────────────────────────────────────────────────────────────
-    dialog = ft.AlertDialog(title=ft.Text("Confirm Cancellation"), modal=True)
+    dialog = ft.AlertDialog(
+    title=ft.Text("Confirm Cancellation"),
+    modal=True,
+    barrier_color="transparent",  # 👈 removes grey overlay
+)
     page.overlay.append(dialog)   # correct way to register dialogs in Flet
 
     def close_dialog():
@@ -64,17 +68,24 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                 controls=[
                     ft.Container(
                         content=ft.Icon(b["icon"], size=20, color=TEAL),
-                        width=44, height=44,
+                        width=44,
+                        height=44,
                         bgcolor=TEAL_LIGHT,
                         border_radius=22,
                         alignment=CENTER,
                     ),
                     ft.Column(
-                        spacing=2, expand=True,
+                        spacing=2,
+                        expand=True,
                         controls=[
-                            ft.Text(b["activity"], size=14,
-                                    weight=ft.FontWeight.W_700, color=TEXT_DARK,
-                                    overflow=ft.TextOverflow.ELLIPSIS, max_lines=1),
+                            ft.Text(
+                                b["activity"],
+                                size=14,
+                                weight=ft.FontWeight.W_700,
+                                color=TEXT_DARK,
+                                overflow=ft.TextOverflow.ELLIPSIS,
+                                max_lines=1,
+                            ),
                             ft.Text(b["id"], size=11, color=TEXT_MUTED),
                         ],
                     ),
@@ -82,10 +93,14 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             )
         ]
 
+        # ─────────────────────────────────────────────
         if b["status"] == "CONFIRMED":
-            # ── async cancel handler ──────────────────────────────────────────
-            async def on_cancel_click(_e, booking=b):
+
+            async def on_cancel_click(e, booking=b):
+
                 async def on_confirm(e):
+
+                    # optimistic UI update
                     booking["status"] = "CANCELLED"
                     rebuild_cards()
                     rebuild_stats()
@@ -93,7 +108,10 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                     dialog.open = False
                     page.update()
 
+                    # backend call
                     success = await cancel_booking(booking["db_id"])
+
+                    # rollback if failed
                     if not success:
                         booking["status"] = "CONFIRMED"
                         rebuild_cards()
@@ -101,65 +119,129 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                         rebuild_pills()
                         page.update()
 
-                dialog.content = ft.Column(spacing=10, controls=[
-                    ft.Text(
-                        f"Are you sure you want to cancel '{booking['activity']}'?",
-                        size=14,
+                def close_dialog(e=None):
+                    dialog.open = False
+                    page.update()
+
+                # ── MODERN POPUP UI ──
+                dialog.content = ft.Container(
+                    width=320,
+                    padding=pad_all(16),
+                    bgcolor=ft.Colors.WHITE,
+                    border_radius=12,
+                    shadow=ft.BoxShadow(
+                        blur_radius=20,
+                        color="#30000000",
+                        offset=ft.Offset(0, 6),
                     ),
-                    ft.Row(spacing=10, controls=[
-                        ft.ElevatedButton(
-                            "Yes, Cancel", on_click=on_confirm,
-                            bgcolor="#8B1A1A", color=ft.Colors.WHITE, height=36,
-                        ),
-                        ft.ElevatedButton(
-                            "No", on_click=lambda e: close_dialog(),
-                            bgcolor=TEAL, color=ft.Colors.WHITE, height=36,
-                        ),
-                    ]),
-                ])
+                    content=ft.Column(
+                        tight=True,
+                        spacing=12,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[
+
+                            # Title
+
+                            # Message
+                            ft.Text(
+                                f"Cancel '{b['activity']}'?",
+                                size=13,
+                                color=TEXT_MUTED,
+                                text_align=ft.TextAlign.CENTER,
+                            ),
+
+                            # Buttons
+                            ft.Row(
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                spacing=10,
+                                controls=[
+
+                                    # No button
+                                    ft.Button(
+                                        "No",
+                                        on_click=lambda e: close_dialog(),
+                                        style=ft.ButtonStyle(
+                                            bgcolor="#F2F2F2",
+                                            color=TEXT_DARK,
+                                            shape=ft.RoundedRectangleBorder(radius=8),
+                                        ),
+                                    ),
+
+                                    # Yes button
+                                    ft.Button(
+                                        "Yes",
+                                        on_click=on_confirm,
+                                        style=ft.ButtonStyle(
+                                            bgcolor="#8B1A1A",
+                                            color=ft.Colors.WHITE,
+                                            shape=ft.RoundedRectangleBorder(radius=8),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                )
                 dialog.open = True
                 page.update()
 
             row_controls.append(
                 ft.Container(
-                    content=ft.ElevatedButton(
-                        "Cancel", on_click=on_cancel_click,
-                        bgcolor="#8B1A1A", color=ft.Colors.WHITE, height=32,
+                    content=ft.Button(
+                        "Cancel",
+                        on_click=on_cancel_click,
+                        style=ft.ButtonStyle(
+                            bgcolor="#8B1A1A",
+                            color=ft.Colors.WHITE,
+                        ),
                     ),
                     padding=pad_sym(h=8, v=2),
                     alignment=CENTER,
                 )
             )
 
+        # ─────────────────────────────────────────────
         return ft.Container(
             bgcolor=CARD_BG,
             border_radius=16,
             padding=pad_all(12),
-            shadow=ft.BoxShadow(blur_radius=12, color="#14000000",
-                                offset=ft.Offset(0, 4)),
-            content=ft.Column(spacing=10, controls=[
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    controls=row_controls,
-                ),
-                ft.Divider(height=1, thickness=1, color=BORDER),
-                ft.Row(spacing=14, wrap=True, controls=[
-                    chip(ft.Icons.CALENDAR_TODAY, b["date"]),
-                    chip(ft.Icons.CONFIRMATION_NUMBER, tickets_label),
-                ]),
-                ft.Row(
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    controls=[
-                        ft.Text("Total paid", size=11, color=TEXT_MUTED),
-                        ft.Text(f"Rs {b['price']:,.0f}", size=15,
-                                weight=ft.FontWeight.W_700, color=TEXT_DARK),
-                    ],
-                ),
-            ]),
+            shadow=ft.BoxShadow(
+                blur_radius=12,
+                color="#14000000",
+                offset=ft.Offset(0, 4),
+            ),
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=row_controls,
+                    ),
+                    ft.Divider(height=1, thickness=1, color=BORDER),
+                    ft.Row(
+                        spacing=14,
+                        wrap=True,
+                        controls=[
+                            chip(ft.Icons.CALENDAR_TODAY, b["date"]),
+                            chip(ft.Icons.CONFIRMATION_NUMBER, tickets_label),
+                        ],
+                    ),
+                    ft.Row(
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        controls=[
+                            ft.Text("Total paid", size=11, color=TEXT_MUTED),
+                            ft.Text(
+                                f"Rs {b['price']:,.0f}",
+                                size=15,
+                                weight=ft.FontWeight.W_700,
+                                color=TEXT_DARK,
+                            ),
+                        ],
+                    ),
+                ],
+            ),
         )
-
     # ── Pills ─────────────────────────────────────────────────────────────────
     def make_pill(label: str, value: str):
         is_active = value == active_filter["value"]
