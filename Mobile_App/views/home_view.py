@@ -1,0 +1,229 @@
+import flet as ft
+from components.bottom_nav import bottom_nav
+from views.catalogue_view import catalogue_view
+
+
+def home_view(page: ft.Page, active_route: str):
+    BG = "#F4FBFC"
+    CARD = "#FFFFFF"
+    PRIMARY = "#1D9FA5"
+    PRIMARY_DARK = "#13777B"
+    PRIMARY_SOFT = "#D9F3F4"
+    TEXT = "#17323B"
+    TEXT_MUTED = "#6D8790"
+    BORDER = "#D7E8EA"
+
+    page_titles = {
+        "/near_us": "Near Us",
+        "/bookings": "Bookings",
+        "/profile": "Profile",
+    }
+
+    page_subtitles = {
+        "/near_us": "Discover nearby places and services.",
+        "/bookings": "View and manage your bookings.",
+        "/profile": "See your account details.",
+    }
+
+    display_name = page.session.store.get("user_name") or "Guest"
+    username_text = page.session.store.get("user_username") or "Guest"
+    user_email = page.session.store.get("user_email") or "N/A"
+
+    async def logout_user(e):
+        for key in [
+            "user_name",
+            "user_username",
+            "user_email",
+            "user_id",
+            "user_data",
+            "access_token",
+            "refresh_token",
+        ]:
+            if page.session.store.contains_key(key):
+                page.session.store.remove(key)
+        await page.push_route("/")
+
+    def placeholder_card(title: str, subtitle: str):
+        return ft.Container(
+            width=470,
+            bgcolor=CARD,
+            border_radius=24,
+            border=ft.border.all(1, BORDER),
+            padding=20,
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Text(
+                        title,
+                        size=18,
+                        weight=ft.FontWeight.BOLD,
+                        color=TEXT,
+                    ),
+                    ft.Text(
+                        subtitle,
+                        size=14,
+                        color=TEXT_MUTED,
+                    ),
+                ],
+            ),
+        )
+
+    def profile_content():
+        return ft.Container(
+            width=470,
+            bgcolor=CARD,
+            border_radius=24,
+            border=ft.border.all(1, BORDER),
+            padding=20,
+            content=ft.Column(
+                spacing=10,
+                controls=[
+                    ft.Text(
+                        "Logged-in User Info",
+                        size=18,
+                        weight=ft.FontWeight.BOLD,
+                        color=TEXT,
+                    ),
+                    ft.Text(f"Name: {display_name}", size=14, color=TEXT),
+                    ft.Text(f"Username: {username_text}", size=14, color=TEXT),
+                    ft.Text(f"Email: {user_email}", size=14, color=TEXT),
+                    ft.Container(height=4),
+                    ft.ElevatedButton(
+                        "Log out",
+                        icon=ft.Icons.LOGOUT,
+                        style=ft.ButtonStyle(
+                            bgcolor=PRIMARY_SOFT,
+                            color=PRIMARY_DARK,
+                            shape=ft.RoundedRectangleBorder(radius=14),
+                        ),
+                        on_click=logout_user,
+                    ),
+                ],
+            ),
+        )
+
+    def other_page_content():
+        if active_route == "/near_us":
+            return placeholder_card(
+                "Near Us",
+                "This section will show nearby places and related information.",
+            )
+
+        if active_route == "/bookings":
+            return placeholder_card(
+                "Bookings",
+                "This section will show the user booking history and booking management.",
+            )
+
+        if active_route == "/profile":
+            return profile_content()
+
+        return placeholder_card(
+            "Page",
+            "Content not found.",
+        )
+
+    # HOME ROUTE: show catalogue only, no header/welcome/title card
+    if active_route == "/home":
+        content = ft.Container(
+            expand=True,
+            padding=ft.padding.only(left=0, right=0, top=0, bottom=110),
+            content=catalogue_view(page),
+        )
+
+        return ft.View(
+            route=active_route,
+            bgcolor=BG,
+            controls=[
+                ft.Stack(
+                    expand=True,
+                    controls=[
+                        content,
+                        bottom_nav(page, active_route),
+                    ],
+                )
+            ],
+        )
+
+    # OTHER ROUTES: keep your existing shell
+    content = ft.Container(
+        expand=True,
+        padding=ft.padding.only(left=22, right=22, top=26, bottom=145),
+        content=ft.Column(
+            controls=[
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    controls=[
+                        ft.Column(
+                            spacing=3,
+                            controls=[
+                                ft.Text(
+                                    f"Welcome, {display_name}",
+                                    size=28,
+                                    weight=ft.FontWeight.BOLD,
+                                    color=TEXT,
+                                ),
+                                ft.Text(
+                                    f"Logged in as: {username_text}",
+                                    size=13,
+                                    color=TEXT_MUTED,
+                                ),
+                            ],
+                        ),
+                        ft.Container(
+                            width=52,
+                            height=52,
+                            border_radius=16,
+                            bgcolor=PRIMARY_SOFT,
+                            content=ft.Icon(
+                                ft.Icons.PERSON,
+                                color=PRIMARY_DARK,
+                                size=28,
+                            ),
+                        ),
+                    ],
+                ),
+                ft.Container(height=18),
+                ft.Container(
+                    width=470,
+                    bgcolor=PRIMARY,
+                    border_radius=28,
+                    padding=20,
+                    content=ft.Column(
+                        controls=[
+                            ft.Text(
+                                page_titles.get(active_route, "Page"),
+                                size=22,
+                                weight=ft.FontWeight.BOLD,
+                                color="white",
+                            ),
+                            ft.Text(
+                                page_subtitles.get(active_route, "Temporary page."),
+                                size=13,
+                                color="#E8FFFF",
+                            ),
+                        ],
+                        spacing=10,
+                    ),
+                ),
+                ft.Container(height=18),
+                other_page_content(),
+            ],
+            scroll=ft.ScrollMode.AUTO,
+        ),
+    )
+
+    return ft.View(
+        route=active_route,
+        bgcolor=BG,
+        controls=[
+            ft.Stack(
+                expand=True,
+                controls=[
+                    content,
+                    bottom_nav(page, active_route),
+                ],
+            )
+        ],
+    )

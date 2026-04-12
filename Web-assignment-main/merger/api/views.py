@@ -1,10 +1,13 @@
 from django.contrib.auth import authenticate
 from rest_framework import permissions, status, viewsets
+from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-
-from .serializers import RegisterSerializer, UserSerializer
+from collections import defaultdict
+from merger.models import Activity
+from django.db.models import Avg, Q
+from .serializers import RegisterSerializer, UserSerializer, ActivityCatalogueSerializer
 
 
 def get_tokens_for_user(user):
@@ -113,3 +116,38 @@ class AuthViewSet(viewsets.GenericViewSet):
                 {"detail": "Invalid refresh token."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        
+class ActivityViewSet(ViewSet):
+    def list(self, request):
+        activities = (
+            Activity.objects
+            .prefetch_related("images")
+            .annotate(
+                average_rating=Avg(
+                    "bookings__review__rating",
+                    filter=Q(bookings__review__is_deleted=False)
+                )
+            )
+            .order_by("activity_type", "name")
+        )
+
+        serializer = ActivityCatalogueSerializer(
+            activities,
+            many=True,
+            context={"request": request}
+        )
+
+        grouped = defaultdict(list)
+        for item in serializer.data:
+            grouped[item["activity_type"]].append(item)
+
+        result = [
+            {
+                "activity_type": activity_type,
+                "activities": items,
+            }
+            for activity_type, items in grouped.items()
+        ]
+
+        return Response(result)

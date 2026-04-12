@@ -2,6 +2,7 @@ import asyncio
 import flet as ft
 
 from utils.api_client import api_login, save_auth_session
+from utils.activity_api import preload_activities
 
 
 def login_view(page: ft.Page):
@@ -17,6 +18,8 @@ def login_view(page: ft.Page):
     LINK = "#148E94"
     ERROR = "#C62828"
     SUCCESS = "#2E7D32"
+
+    is_logging_in = False
 
     def show_message(message: str, color: str = PRIMARY_DARK):
         page.snack_bar = ft.SnackBar(
@@ -65,7 +68,37 @@ def login_view(page: ft.Page):
     remember_me = ft.Checkbox(value=False, active_color=PRIMARY)
     form_error = ft.Text("", size=12, color=ERROR, text_align=ft.TextAlign.CENTER, visible=False)
 
+    login_button_text = ft.Text(
+        "Log In",
+        color="white",
+        size=16,
+        weight=ft.FontWeight.BOLD,
+    )
+
+    login_button = ft.Container(
+        width=420,
+        height=54,
+        bgcolor=PRIMARY,
+        border_radius=18,
+        ink=True,
+        content=ft.Row(
+            controls=[login_button_text],
+            alignment=ft.MainAxisAlignment.CENTER,
+        ),
+    )
+
     async def submit_login(e):
+        nonlocal is_logging_in
+
+        if is_logging_in:
+            return
+
+        is_logging_in = True
+        login_button.on_click = None
+        login_button.opacity = 0.7
+        login_button_text.value = "Logging in..."
+        page.update()
+
         email_error.value = ""
         email_error.visible = False
         password_error.value = ""
@@ -84,16 +117,37 @@ def login_view(page: ft.Page):
 
         if result.get("fatal"):
             show_message(result["fatal"], ERROR)
+            is_logging_in = False
+            login_button.on_click = submit_login
+            login_button.opacity = 1
+            login_button_text.value = "Log In"
+            page.update()
             return
 
         if result["ok"]:
             payload = result["data"]
             save_auth_session(page, payload)
+
+            # Preload catalogue before routing to /home
+            try:
+                login_button_text.value = "Loading catalogue..."
+                page.update()
+                await asyncio.to_thread(preload_activities, page)
+            except Exception:
+                pass
+
             user = payload.get("user", {})
             show_message(
                 f"Welcome, {user.get('full_name') or user.get('username') or user.get('email')}!",
                 SUCCESS,
             )
+
+            is_logging_in = False
+            login_button.on_click = submit_login
+            login_button.opacity = 1
+            login_button_text.value = "Log In"
+            page.update()
+
             await page.push_route("/home")
             return
 
@@ -117,10 +171,16 @@ def login_view(page: ft.Page):
         else:
             show_message("Login failed. Please check your details.", ERROR)
 
+        is_logging_in = False
+        login_button.on_click = submit_login
+        login_button.opacity = 1
+        login_button_text.value = "Log In"
         page.update()
 
     async def go_register(e):
         await page.push_route("/register")
+
+    login_button.on_click = submit_login
 
     card = ft.Container(
         width=470,
@@ -179,25 +239,7 @@ def login_view(page: ft.Page):
                     spacing=6,
                 ),
                 ft.Container(height=14),
-                ft.Container(
-                    width=420,
-                    height=54,
-                    bgcolor=PRIMARY,
-                    border_radius=18,
-                    ink=True,
-                    on_click=submit_login,
-                    content=ft.Row(
-                        controls=[
-                            ft.Text(
-                                "Log In",
-                                color="white",
-                                size=16,
-                                weight=ft.FontWeight.BOLD,
-                            )
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
-                    ),
-                ),
+                login_button,
                 ft.Container(height=6),
                 ft.Container(
                     padding=10,

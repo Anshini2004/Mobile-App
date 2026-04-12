@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from merger.models import Activity, ActivityImage, BookingReview
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -98,3 +100,49 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return obj.get_full_name().strip() or obj.username or obj.email
+    
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ActivityImage
+        fields = ["image_url"]
+
+    def get_image_url(self, obj):
+        request = self.context.get("request")
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None
+
+
+class ActivityCatalogueSerializer(serializers.ModelSerializer):
+    images = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            "id",
+            "name",
+            "activity_type",
+            "description",
+            "base_price",
+            "location",
+            "duration",
+            "max_participants",
+            "images",
+            "average_rating",
+        ]
+
+    def get_images(self, obj):
+        request = self.context.get("request")
+        return [
+            request.build_absolute_uri(img.image.url)
+            for img in obj.images.all()
+            if img.image
+        ]
+
+    def get_average_rating(self, obj):
+        avg_rating = getattr(obj, "average_rating", None)
+        return round(avg_rating, 1) if avg_rating is not None else None
