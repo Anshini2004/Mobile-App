@@ -133,26 +133,39 @@ async def main(page: ft.Page):
     # NEAR ME LOGIC
     # ─────────────────────────────
     async def go_to_nearest():
+        # 1. Check if location service is ON
+        enabled = await geo.is_location_service_enabled()
+        if not enabled:
+            print("Location service is OFF")
+            await geo.open_location_settings()
+            return
+
+        # 2. Request permission
         perm = await geo.request_permission()
 
         if perm not in (
             ftg.GeolocatorPermissionStatus.WHILE_IN_USE,
             ftg.GeolocatorPermissionStatus.ALWAYS,
         ):
-            await geo.open_location_settings()
+            print("Permission denied:", perm)
+            await geo.open_app_settings()
             return
 
-        # try fast first
+        # 3. Try last known position (fast)
         pos = await geo.get_last_known_position()
 
+        # 4. Fallback to current position (slow but accurate)
         if not pos:
             pos = await geo.get_current_position()
 
+        # 5. HARD fallback (IMPORTANT)
         if not pos:
-            return
+            print("GPS failed → using default Mauritius location")
+            user_lat, user_lon = -20.2, 57.5  # Mauritius fallback
+        else:
+            user_lat, user_lon = pos.latitude, pos.longitude
 
-        user_lat, user_lon = pos.latitude, pos.longitude
-
+        # 6. Find closest activity
         closest = None
         min_dist = float("inf")
 
@@ -168,6 +181,7 @@ async def main(page: ft.Page):
                 min_dist = d
                 closest = item
 
+        # 7. Move map + show popup
         if closest:
             await map_view.move_to(
                 destination=ftm.MapLatitudeLongitude(
@@ -178,6 +192,8 @@ async def main(page: ft.Page):
             )
 
             show_popup(closest["activity"])
+        else:
+            print("No activities found")
 
     def show_near_me_dialog():
         dialog = ft.AlertDialog(
