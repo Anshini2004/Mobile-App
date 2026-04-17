@@ -28,7 +28,6 @@ from ..models import User, BookingReview, Notification
 from .serializers import (
     UserSerializer,
     ActivitySerializer,
-    ActivityListSerializer,
     ActivityDetailSerializer,
     BookingSerializer,
     BookingCreateSerializer,
@@ -291,7 +290,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 class ActivityListView(generics.ListAPIView):
     queryset = Activity.objects.prefetch_related("images", "highlights").all()
-    serializer_class = ActivityListSerializer
+    serializer_class = ActivitySerializer
     permission_classes = [permissions.AllowAny]
 
     def get_serializer_context(self):

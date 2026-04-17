@@ -71,7 +71,7 @@ class ActivityHighlightSerializer(serializers.ModelSerializer):
 # ACTIVITY LIST (LIGHT)
 # ---------------------------
 
-class ActivityListSerializer(serializers.ModelSerializer):
+class ActivitySerializer(serializers.ModelSerializer):
     images = ActivityImageSerializer(many=True, read_only=True)
     avg_rating = serializers.SerializerMethodField()
 
