@@ -130,10 +130,8 @@ def register_view(page: ft.Page):
             return
 
         if result["ok"]:
-            payload = result["data"]
-            save_auth_session(page, payload)
-            show_message("Account created successfully!", SUCCESS)
-            await page.push_route("/home")
+            show_message("Account created successfully! Please log in.", SUCCESS)
+            await page.push_route("/")
             return
 
         data = result.get("data", {})

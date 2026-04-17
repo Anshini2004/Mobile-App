@@ -27,13 +27,9 @@ class AuthViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        tokens = get_tokens_for_user(user)
-
         return Response(
             {
                 "message": "Account created successfully.",
-                "user": UserSerializer(user).data,
-                "tokens": tokens,
             },
             status=status.HTTP_201_CREATED,
         )
