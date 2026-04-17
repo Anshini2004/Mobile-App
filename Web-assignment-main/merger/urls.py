@@ -70,4 +70,10 @@ urlpatterns = [
          name='password_reset_complete'),
     
     path('signup/termsandcondition/', views.terms_and_condition, name='termsandcondition'),
+    
+    
+    
+    
+    path('api/', include('merger.api.urls')),
+     
 ]

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
+from django.db.models import Avg
+
 from ..models import (
     User, Activity, ActivityImage, ActivityHighlight,
     Booking, Payment, BookingReview, Notification
@@ -30,24 +32,74 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------
-# ACTIVITY SERIALIZERS
+# ACTIVITY IMAGE
 # ---------------------------
 
 class ActivityImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ActivityImage
-        fields = ["id", "image"]
+        fields = ["id", "image_url"]
 
+    def get_image_url(self, obj):
+        request = self.context.get("request")
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None
+
+
+# ---------------------------
+# ACTIVITY HIGHLIGHT
+# ---------------------------
 
 class ActivityHighlightSerializer(serializers.ModelSerializer):
+    icon_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = ActivityHighlight
-        fields = ["id", "icon_title", "icon_description", "icon_image"]
+        fields = ["id", "icon_title", "icon_description", "icon_image_url"]
+
+    def get_icon_image_url(self, obj):
+        request = self.context.get("request")
+        if obj.icon_image and request:
+            return request.build_absolute_uri(obj.icon_image.url)
+        return None
 
 
-class ActivitySerializer(serializers.ModelSerializer):
+# ---------------------------
+# ACTIVITY LIST (LIGHT)
+# ---------------------------
+
+class ActivityListSerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, read_only=True)
+    avg_rating = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            "id", "name", "location", "activity_type",
+            "base_price", "duration", "max_participants",
+            "avg_rating", "images",
+        ]
+
+    def get_avg_rating(self, obj):
+        result = BookingReview.objects.filter(
+            booking__activity=obj
+        ).aggregate(avg=Avg("rating"))
+        return round(result["avg"], 1) if result["avg"] else None
+
+
+# ---------------------------
+# ACTIVITY DETAIL
+# ---------------------------
+
+class ActivityDetailSerializer(serializers.ModelSerializer):
     images = ActivityImageSerializer(many=True, read_only=True)
     highlights = ActivityHighlightSerializer(many=True, read_only=True)
+    avg_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
@@ -57,12 +109,32 @@ class ActivitySerializer(serializers.ModelSerializer):
             "max_participants",
             "activity_rules", "safety_equipment", "cancellation_policy",
             "map_embed_url", "map_location_description",
-            "images", "highlights"
+            "avg_rating", "review_count",
+            "images", "highlights", "reviews"
         ]
+
+    def get_avg_rating(self, obj):
+        result = BookingReview.objects.filter(
+            booking__activity=obj
+        ).aggregate(avg=Avg("rating"))
+        return round(result["avg"], 1) if result["avg"] else None
+
+    def get_review_count(self, obj):
+        return BookingReview.objects.filter(
+            booking__activity=obj
+        ).count()
+
+    def get_reviews(self, obj):
+        reviews = BookingReview.objects.filter(
+            booking__activity=obj
+        ).select_related("booking__customer")
+        return BookingReviewSerializer(
+            reviews, many=True, context=self.context
+        ).data
 
 
 # ---------------------------
-# BOOKING SERIALIZER
+# BOOKING
 # ---------------------------
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -78,44 +150,58 @@ class BookingSerializer(serializers.ModelSerializer):
         read_only_fields = ["price_total", "status"]
 
 
+class BookingCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = ["activity", "date", "group_size"]
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        return Booking.objects.create(
+            customer=request.user,
+            **validated_data
+        )
+
+
 # ---------------------------
-# PAYMENT SERIALIZER
+# PAYMENT
 # ---------------------------
 
 class PaymentSerializer(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source="booking.activity.name", read_only=True)
+    activity_name = serializers.CharField(
+        source="booking.activity.name", read_only=True
+    )
 
     class Meta:
         model = Payment
-        fields = [
-            "id", "booking", "amount",
-            "method", "status",
-            "provider", "paid_at",
-            "activity_name"
-        ]
+        fields = "__all__"
         read_only_fields = ["status", "paid_at"]
 
 
 # ---------------------------
-# REVIEW SERIALIZER
+# REVIEW
 # ---------------------------
 
 class BookingReviewSerializer(serializers.ModelSerializer):
-    activity_name = serializers.CharField(source="booking.activity.name", read_only=True)
-    customer_name = serializers.CharField(source="customer.first_name", read_only=True)
+    activity_name = serializers.CharField(
+        source="booking.activity.name", read_only=True
+    )
+    customer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingReview
         fields = [
-            "id", "booking", "customer",
-            "rating", "comment",
-            "created_at",
-            "activity_name", "customer_name"
+            "id", "booking", "rating", "comment",
+            "created_at", "activity_name", "customer_name"
         ]
+
+    def get_customer_name(self, obj):
+        customer = obj.booking.customer
+        return customer.get_full_name() or customer.email
 
 
 # ---------------------------
-# NOTIFICATION SERIALIZER
+# NOTIFICATION
 # ---------------------------
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -136,12 +222,3 @@ class NotificationSerializer(serializers.ModelSerializer):
     def get_details_part(self, obj):
         parts = obj.message.split("|||")
         return parts[1] if len(parts) > 1 else ""
-
-
-# ---------------------------
-# HOMEPAGE STATS SERIALIZER
-# ---------------------------
-
-class ActivityStatsSerializer(serializers.Serializer):
-    avg = serializers.FloatField()
-    total = serializers.IntegerField()
