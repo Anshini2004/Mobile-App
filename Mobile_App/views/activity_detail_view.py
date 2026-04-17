@@ -5,8 +5,8 @@ import requests
 from datetime import datetime, date
 from urllib.parse import quote_plus
 
-BASE_URL = "http://127.0.0.1:8000"
-
+# BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://192.168.100.10:8000"
 
 def activity_detail_view(page: ft.Page, activity_id: int):
     PRIMARY = "#0A2540"
@@ -20,13 +20,22 @@ def activity_detail_view(page: ft.Page, activity_id: int):
     AMBER = "#F59E0B"
     ORANGE = "#F97316"
     ERROR = "#DC2626"
-    HERO_FALLBACK = "#CFF7F1"
+    HERO_FALLBACK = "#092846"
 
     activity_data = {"data": None}
     selected_image = {"index": 0}
     description_expanded = {"value": False}
-    booking_offset = {"value": 760.0}
+    booking_offset = {"value": 900.0}
     scroll_pixels = {"value": 0.0}
+    hero_drag_dx = {"value": 0.0}
+
+    # Persist expansion state across rebuilds
+    expanded_sections = {
+        "rules": False,
+        "safety": False,
+        "cancellation": False,
+        "reviews": False,
+    }
 
     today = date.today()
     current = {"year": today.year, "month": today.month}
@@ -142,15 +151,55 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             spacing=1,
         )
 
-    def bullet_section(title, items, icon, icon_color, subtitle=None):
+    def handle_expansion_change(section_key: str):
+        def _handler(e):
+            expanded_sections[section_key] = str(e.data).lower() == "true"
+            page.update()
+        return _handler
+
+    def bullet_section(title, items, icon, icon_color, subtitle=None, section_key=""):
         if not items:
             return ft.Container(height=0)
 
         return soft_card(
-            ft.Column(
-                spacing=14,
+            ft.ExpansionTile(
+                expanded=expanded_sections.get(section_key, False),
+                maintain_state=True,
+                on_change=handle_expansion_change(section_key),
+                tile_padding=ft.padding.all(0),
+                controls_padding=ft.padding.only(top=8, bottom=0, left=0, right=0),
+                icon_color=MUTED,
+                collapsed_icon_color=MUTED,
+                text_color=TEXT,
+                collapsed_text_color=TEXT,
+                shape=ft.RoundedRectangleBorder(
+                    radius=16,
+                    side=ft.BorderSide.none(),
+                ),
+                collapsed_shape=ft.RoundedRectangleBorder(
+                    radius=16,
+                    side=ft.BorderSide.none(),
+                ),
+                leading=ft.Container(
+                    width=34,
+                    height=34,
+                    border_radius=17,
+                    bgcolor=LIGHT,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Icon(icon, size=16, color=icon_color),
+                ),
+                title=ft.Text(
+                    title,
+                    size=16,
+                    weight=ft.FontWeight.BOLD,
+                    color=TEXT,
+                ),
+                subtitle=ft.Text(
+                    subtitle or "Tap to view details",
+                    size=12,
+                    color=MUTED,
+                ),
                 controls=[
-                    section_title(title, subtitle),
                     ft.Column(
                         spacing=10,
                         controls=[
@@ -159,21 +208,31 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 vertical_alignment=ft.CrossAxisAlignment.START,
                                 controls=[
                                     ft.Container(
-                                        width=28,
-                                        height=28,
-                                        border_radius=14,
-                                        bgcolor=LIGHT,
+                                        width=24,
+                                        height=24,
+                                        border_radius=12,
+                                        bgcolor="#EEF2F7",
                                         alignment=ft.Alignment(0, 0),
-                                        content=ft.Icon(icon, size=14, color=icon_color),
+                                        content=ft.Icon(
+                                            ft.Icons.CHECK,
+                                            size=13,
+                                            color=icon_color,
+                                        ),
                                     ),
-                                    ft.Text(item, size=13, color=MUTED, expand=True),
+                                    ft.Text(
+                                        item,
+                                        size=13,
+                                        color=MUTED,
+                                        expand=True,
+                                    ),
                                 ],
                             )
                             for item in items
                         ],
-                    ),
+                    )
                 ],
-            )
+            ),
+            padding=16,
         )
 
     def review_card(r: dict) -> ft.Container:
@@ -487,6 +546,24 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         build_page(d)
         page.update()
 
+    def on_hero_horizontal_drag_update(e):
+        try:
+            hero_drag_dx["value"] += float(getattr(e, "primary_delta", 0) or 0)
+        except Exception:
+            pass
+
+    def on_hero_horizontal_drag_end(e):
+        dx = hero_drag_dx["value"]
+        hero_drag_dx["value"] = 0.0
+
+        if abs(dx) < 20:
+            return
+
+        if dx < 0:
+            next_image()
+        else:
+            prev_image()
+
     def toggle_description(e):
         description_expanded["value"] = not description_expanded["value"]
         if activity_data["data"] is not None:
@@ -527,7 +604,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         if show_desc_toggle and not description_expanded["value"]:
             short_description = description[:240].rsplit(" ", 1)[0] + "…"
 
-        booking_offset["value"] = 700.0
+        booking_offset["value"] = 1020.0
         if highlights:
             booking_offset["value"] += 170.0
         if show_desc_toggle and description_expanded["value"]:
@@ -551,107 +628,76 @@ def activity_detail_view(page: ft.Page, activity_id: int):
 
         hero = ft.Container(
             height=360,
-            content=ft.Stack(
-                expand=True,
-                controls=[
-                    ft.Container(
-                        expand=True,
-                        bgcolor=HERO_FALLBACK,
-                        content=(
-                            ft.Image(
-                                src=hero_url,
-                                fit="cover",
-                                expand=True,
-                                error_content=ft.Icon(ft.Icons.WAVES, size=70, color=TEAL),
-                            )
-                            if hero_url
-                            else ft.Container(
-                                expand=True,
-                                alignment=ft.Alignment(0, 0),
-                                content=ft.Column(
-                                    controls=[
-                                        ft.Icon(ft.Icons.WAVES, size=72, color=TEAL),
-                                        ft.Text("Ocean escape", color=PRIMARY, size=14),
-                                    ],
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=8,
-                                ),
-                            )
-                        ),
-                    ),
-                    ft.Container(
-                        expand=True,
-                        gradient=ft.LinearGradient(
-                            begin=ft.alignment.Alignment(0, -1),
-                            end=ft.alignment.Alignment(0, 1),
-                            colors=["#00000010", "#24000000", "#B3000000"],
-                        ),
-                    ),
-                    ft.Container(
-                        left=0,
-                        top=0,
-                        bottom=0,
-                        width=120,
-                        bgcolor="#00000000",
-                        on_click=lambda e: prev_image(),
-                    ),
-                    ft.Container(
-                        right=0,
-                        top=0,
-                        bottom=0,
-                        width=120,
-                        bgcolor="#00000000",
-                        on_click=lambda e: next_image(),
-                    ),
-                    ft.Container(
-                        left=14,
-                        alignment=ft.Alignment(-1, 0),
-                        content=ft.Container(
-                            width=38,
-                            height=38,
-                            border_radius=19,
-                            bgcolor="#4D0A2540",
-                            alignment=ft.Alignment(0, 0),
-                            on_click=lambda e: prev_image(),
-                            content=ft.Icon(ft.Icons.CHEVRON_LEFT, color="white", size=20),
-                        ),
-                    ),
-                    ft.Container(
-                        right=14,
-                        alignment=ft.Alignment(1, 0),
-                        content=ft.Container(
-                            width=38,
-                            height=38,
-                            border_radius=19,
-                            bgcolor="#4D0A2540",
-                            alignment=ft.Alignment(0, 0),
-                            on_click=lambda e: next_image(),
-                            content=ft.Icon(ft.Icons.CHEVRON_RIGHT, color="white", size=20),
-                        ),
-                    ),
-                    ft.Container(
-                        bottom=26,
-                        left=18,
-                        content=ft.Container(
-                            border_radius=18,
-                            bgcolor="#33FFFFFF",
-                            padding=ft.padding.symmetric(horizontal=12, vertical=8),
-                            content=ft.Text(
-                                activity_type,
-                                size=12,
-                                color="white",
-                                weight=ft.FontWeight.W_600,
+            content=ft.GestureDetector(
+                drag_interval=0,
+                on_horizontal_drag_update=on_hero_horizontal_drag_update,
+                on_horizontal_drag_end=on_hero_horizontal_drag_end,
+                content=ft.Stack(
+                    expand=True,
+                    controls=[
+                        ft.Container(
+                            expand=True,
+                            bgcolor=HERO_FALLBACK,
+                            clip_behavior=ft.ClipBehavior.HARD_EDGE,
+                            content=(
+                                ft.Image(
+                                    src=hero_url,
+                                    fit="cover",
+                                    width=2000,
+                                    height=2000,
+                                    error_content=ft.Container(
+                                        expand=True,
+                                        alignment=ft.Alignment(0, 0),
+                                        content=ft.Icon(ft.Icons.WAVES, size=70, color=TEAL),
+                                    ),
+                                )
+                                if hero_url
+                                else ft.Container(
+                                    expand=True,
+                                    alignment=ft.Alignment(0, 0),
+                                    content=ft.Column(
+                                        controls=[
+                                            ft.Icon(ft.Icons.WAVES, size=72, color=TEAL),
+                                            ft.Text("Ocean escape", color=PRIMARY, size=14),
+                                        ],
+                                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                        spacing=8,
+                                    ),
+                                )
                             ),
                         ),
-                    ),
-                    ft.Container(
-                        bottom=26,
-                        left=0,
-                        right=0,
-                        alignment=ft.Alignment(0, 0),
-                        content=hero_dots if len(images) > 1 else ft.Container(height=0),
-                    ),
-                ],
+                        ft.Container(
+                            expand=True,
+                            gradient=ft.LinearGradient(
+                                begin=ft.alignment.Alignment(0, -1),
+                                end=ft.alignment.Alignment(0, 1),
+                                colors=["#00000010", "#24000000", "#B3000000"],
+                            ),
+                        ),
+                        ft.Container(
+                            bottom=26,
+                            left=18,
+                            content=ft.Container(
+                                border_radius=18,
+                                bgcolor="#33FFFFFF",
+                                padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                                content=ft.Text(
+                                    activity_type,
+                                    size=12,
+                                    color="white",
+                                    weight=ft.FontWeight.W_600,
+                                ),
+                            ),
+                        ),
+                        ft.Container(
+                            bottom=26,
+                            left=0,
+                            right=0,
+                            alignment=ft.Alignment(0, 0),
+                            content=hero_dots if len(images) > 1 else ft.Container(height=0),
+                        ),
+                    ],
+                ),
             ),
         )
 
@@ -1114,7 +1160,8 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             rules,
             ft.Icons.CIRCLE,
             PRIMARY,
-            "Simple ground rules to keep the experience smooth for everyone",
+            "Tap to view all rules",
+            section_key="rules",
         )
 
         safety_section = bullet_section(
@@ -1122,7 +1169,8 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             safety,
             ft.Icons.SHIELD,
             TEAL,
-            "What is provided or required before you head out",
+            "Tap to view all safety details",
+            section_key="safety",
         )
 
         cancellation_section = bullet_section(
@@ -1130,36 +1178,74 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             cancellation,
             ft.Icons.INFO_OUTLINE,
             ORANGE,
-            "Know the policy before you confirm your booking",
+            "Tap to view policy details",
+            section_key="cancellation",
         )
 
-        reviews_section = soft_card(
-            ft.Column(
-                spacing=14,
-                controls=[
-                    section_title(
-                        "Guest reviews",
-                        f"{avg_rating:.1f} average rating across {rev_count} review{'s' if rev_count != 1 else ''}"
-                        if rev_count
-                        else "Be the first to leave a review after your experience",
-                    ),
-                    ft.Column(
-                        spacing=12,
-                        controls=[review_card(r) for r in reviews[:6]],
-                    )
-                    if reviews
-                    else ft.Container(
-                        border_radius=18,
-                        bgcolor=LIGHT,
-                        padding=ft.padding.all(18),
-                        content=ft.Text(
-                            "No reviews yet, but this experience is ready for its first guests.",
-                            size=13,
-                            color=MUTED,
-                        ),
-                    ),
-                ],
+        if reviews:
+            reviews_body = ft.Column(
+                spacing=12,
+                controls=[review_card(r) for r in reviews[:6]],
             )
+            reviews_subtitle = (
+                f"{avg_rating:.1f} average rating across {rev_count} review{'s' if rev_count != 1 else ''}"
+                if rev_count
+                else "Tap to view guest reviews"
+            )
+        else:
+            reviews_body = ft.Container(
+                border_radius=18,
+                bgcolor=LIGHT,
+                padding=ft.padding.all(18),
+                content=ft.Text(
+                    "No reviews yet, but this experience is ready for its first guests.",
+                    size=13,
+                    color=MUTED,
+                ),
+            )
+            reviews_subtitle = "Be the first to leave a review after your experience"
+
+        reviews_section = soft_card(
+            ft.ExpansionTile(
+                expanded=expanded_sections.get("reviews", False),
+                maintain_state=True,
+                on_change=handle_expansion_change("reviews"),
+                tile_padding=ft.padding.all(0),
+                controls_padding=ft.padding.only(top=8, bottom=0, left=0, right=0),
+                icon_color=MUTED,
+                collapsed_icon_color=MUTED,
+                text_color=TEXT,
+                collapsed_text_color=TEXT,
+                shape=ft.RoundedRectangleBorder(
+                    radius=16,
+                    side=ft.BorderSide.none(),
+                ),
+                collapsed_shape=ft.RoundedRectangleBorder(
+                    radius=16,
+                    side=ft.BorderSide.none(),
+                ),
+                leading=ft.Container(
+                    width=34,
+                    height=34,
+                    border_radius=17,
+                    bgcolor=LIGHT,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Icon(ft.Icons.RATE_REVIEW, size=16, color=TEAL),
+                ),
+                title=ft.Text(
+                    "Guest reviews",
+                    size=16,
+                    weight=ft.FontWeight.BOLD,
+                    color=TEXT,
+                ),
+                subtitle=ft.Text(
+                    reviews_subtitle,
+                    size=12,
+                    color=MUTED,
+                ),
+                controls=[reviews_body],
+            ),
+            padding=16,
         )
 
         scroll_col.controls = [
@@ -1290,7 +1376,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         visible=False,
         left=0,
         right=0,
-        bottom=22,
+        bottom=40,
         alignment=ft.Alignment(0, 0),
         content=ft.Container(
             height=56,
