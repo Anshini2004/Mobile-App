@@ -8,9 +8,12 @@ from .views import (
     ActivityDetailView,
     BookingCreateView
 )
+from .viewsets import UserViewSet, current_user, ActivityViewSet
 
 router = DefaultRouter()
 router.register(r'payments', PaymentViewSet, basename='payments')
+router.register(r'users', UserViewSet, basename='user')
+router.register(r'activities', ActivityViewSet, basename='activity')
 
 
 urlpatterns = [
@@ -28,4 +31,5 @@ urlpatterns = [
     path("activities/", ActivityListView.as_view()),
     path("activities/<int:pk>/", ActivityDetailView.as_view()),
     path("bookings/", BookingCreateView.as_view())
+    path('me/', current_user, name='api-me'), # Flet will GET here to get user info
 ]

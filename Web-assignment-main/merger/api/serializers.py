@@ -12,11 +12,12 @@ from ..models import (
 # ---------------------------
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, required = False)
 
     class Meta:
         model = User
         fields = [
+
             "id", "email", "first_name", "last_name",
             "phone", "password", "total_bookings", "total_spent"
         ]
@@ -80,7 +81,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "location", "activity_type",
             "base_price", "duration", "max_participants",
-            "avg_rating", "images",
+            "avg_rating", "images","description", "image"
         ]
 
     def get_avg_rating(self, obj):
@@ -88,6 +89,17 @@ class ActivitySerializer(serializers.ModelSerializer):
             booking__activity=obj
         ).aggregate(avg=Avg("rating"))
         return round(result["avg"], 1) if result["avg"] else None
+    
+    def get_image(self, obj):
+        request = self.context.get('request')
+        first_image = obj.images.first()
+
+        if first_image and first_image.image:
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+
+        return None
 
 
 # ---------------------------

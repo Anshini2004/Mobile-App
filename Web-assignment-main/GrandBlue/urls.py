@@ -23,7 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('grandblue/', include('merger.urls')),
     path('chatbot/', include('chatbot.urls')),
-    path('api/', include('merger.api.urls')), 
+    path('api/', include('merger.api.urls'))
 ]
 
 if settings.DEBUG:
