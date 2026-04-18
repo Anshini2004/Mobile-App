@@ -23,4 +23,3 @@ def current_user(request):
 class ActivityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Activity.objects.all()
     serializer_class = ActivitySerializer
-    permission_classes = [permissions.IsAuthenticated]

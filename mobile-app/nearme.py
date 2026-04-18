@@ -221,7 +221,7 @@ async def main(page: ft.Page):
     # FETCH ACTIVITIES
     # ─────────────────────────────
     async def fetch_activities():
-        headers = {"Authorization": f"Token {TOKEN}"}  # remove the inside to test without authentication. headers = {"Authorization": f"Token {TOKEN}"}
+        headers = {}  # remove the inside to test without authentication. headers = {"Authorization": f"Token {TOKEN}"}
 
         async with httpx.AsyncClient() as client:
             res = await client.get(API_URL, headers=headers)

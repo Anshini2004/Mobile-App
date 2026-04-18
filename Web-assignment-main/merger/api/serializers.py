@@ -75,13 +75,14 @@ class ActivityHighlightSerializer(serializers.ModelSerializer):
 class ActivitySerializer(serializers.ModelSerializer):
     images = ActivityImageSerializer(many=True, read_only=True)
     avg_rating = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
         fields = [
             "id", "name", "location", "activity_type",
             "base_price", "duration", "max_participants",
-            "avg_rating", "images","description", "image"
+            "avg_rating", "images", "description", "image"
         ]
 
     def get_avg_rating(self, obj):

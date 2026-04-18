@@ -20,4 +20,4 @@ permissions = ["location"]
 
 [tool.flet.flutter.dependencies]
 flet_map = "*"
-"flet-geolocator>=0.1.0"
+flet_geolocator = ">=0.1.0"

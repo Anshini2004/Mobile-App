@@ -30,6 +30,6 @@ urlpatterns = [
     path("", include(router.urls)),
     path("activities/", ActivityListView.as_view()),
     path("activities/<int:pk>/", ActivityDetailView.as_view()),
-    path("bookings/", BookingCreateView.as_view())
+    path("bookings/", BookingCreateView.as_view()),
     path('me/', current_user, name='api-me'), # Flet will GET here to get user info
 ]
