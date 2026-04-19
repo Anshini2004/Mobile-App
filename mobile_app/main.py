@@ -21,7 +21,7 @@ def main(page: ft.Page):
     page.spacing = 0
 
     page.window.width = 550
-    page.window.height = 900
+    page.window.height = 800
     page.window.resizable = False
     page.window.maximizable = False
     page.window.bgcolor = "#F4FBFC"
@@ -103,44 +103,6 @@ def main(page: ft.Page):
         clear_auth_session()
         await page.push_route("/")
 
-    def profile_content():
-        display_name = page.session.store.get("user_name") or "Guest"
-        username_text = page.session.store.get("user_username") or "Guest"
-        user_email = page.session.store.get("user_email") or "N/A"
-
-        return ft.Container(
-            width=470,
-            bgcolor=CARD,
-            border_radius=24,
-            border=ft.border.all(1, BORDER),
-            padding=20,
-            content=ft.Column(
-                spacing=10,
-                controls=[
-                    ft.Text(
-                        "Logged-in User Info",
-                        size=18,
-                        weight=ft.FontWeight.BOLD,
-                        color=TEXT,
-                    ),
-                    ft.Text(f"Name: {display_name}", size=14, color=TEXT),
-                    ft.Text(f"Username: {username_text}", size=14, color=TEXT),
-                    ft.Text(f"Email: {user_email}", size=14, color=TEXT),
-                    ft.Container(height=4),
-                    ft.ElevatedButton(
-                        "Log out",
-                        icon=ft.Icons.LOGOUT,
-                        style=ft.ButtonStyle(
-                            bgcolor=PRIMARY_SOFT,
-                            color=PRIMARY_DARK,
-                            shape=ft.RoundedRectangleBorder(radius=14),
-                        ),
-                        on_click=logout_user,
-                    ),
-                ],
-            ),
-        )
-
     def build_tab_shell(active_route: str) -> ft.View:
         # HOME: render catalogue directly + bottom nav
         if active_route == "/home":
@@ -198,66 +160,8 @@ def main(page: ft.Page):
 
         content = ft.Container(
             expand=True,
-            padding=ft.Padding.only(left=22, right=22, top=26, bottom=145),
             content=ft.Column(
                 controls=[
-                    ft.Row(
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        controls=[
-                            ft.Column(
-                                spacing=3,
-                                controls=[
-                                    ft.Text(
-                                        f"Welcome, {display_name}",
-                                        size=28,
-                                        weight=ft.FontWeight.BOLD,
-                                        color=TEXT,
-                                    ),
-                                    ft.Text(
-                                        f"Logged in as: {username_text}",
-                                        size=13,
-                                        color=TEXT_MUTED,
-                                    ),
-                                ],
-                            ),
-                            ft.Container(
-                                width=52,
-                                height=52,
-                                border_radius=16,
-                                bgcolor=PRIMARY_SOFT,
-                                content=ft.Icon(
-                                    ft.Icons.PERSON,
-                                    color=PRIMARY_DARK,
-                                    size=28,
-                                ),
-                            ),
-                        ],
-                    ),
-                    ft.Container(height=18),
-                    ft.Container(
-                        width=470,
-                        bgcolor=PRIMARY,
-                        border_radius=28,
-                        padding=20,
-                        content=ft.Column(
-                            controls=[
-                                ft.Text(
-                                    page_titles.get(active_route, "Page"),
-                                    size=22,
-                                    weight=ft.FontWeight.BOLD,
-                                    color="white",
-                                ),
-                                ft.Text(
-                                    page_subtitles.get(active_route, "Temporary page."),
-                                    size=13,
-                                    color="#E8FFFF",
-                                ),
-                            ],
-                            spacing=10,
-                        ),
-                    ),
-                    ft.Container(height=18),
                     page_content,
                 ],
                 scroll=ft.ScrollMode.AUTO,
