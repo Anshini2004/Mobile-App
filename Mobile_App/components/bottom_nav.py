@@ -57,7 +57,7 @@ def bottom_nav(page: ft.Page, active_route: str):
         content=ft.Row(
             controls=[
                 nav_item(ft.Icons.GRID_VIEW_OUTLINED, "Catalogue", "/home"),
-                nav_item(ft.Icons.PLACE_OUTLINED, "Near Us", "/near_us"),
+                nav_item(ft.Icons.PLACE_OUTLINED, "Near Me", "/nearme"),
                 nav_item(ft.Icons.CALENDAR_MONTH_OUTLINED, "Bookings", "/bookings"),
                 nav_item(ft.Icons.PERSON_OUTLINE, "Profile", "/profile"),
             ],

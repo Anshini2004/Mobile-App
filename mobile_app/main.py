@@ -9,7 +9,7 @@ from views.login_view import login_view
 from views.register_view import register_view
 from views.catalogue_view import catalogue_view
 from components.bottom_nav import bottom_nav
-from views.nearme import main as nearme_view
+from views.nearme import nearme_view
 from views.profile import profile_view
 
 
@@ -162,13 +162,13 @@ def main(page: ft.Page):
             )
 
         page_titles = {
-            "/near_us": "Near Us",
+            "/nearme": "Near Me",
             "/bookings": "Bookings",
             "/profile": "Profile",
         }
 
         page_subtitles = {
-            "/near_us": "Discover nearby places and services.",
+            "/nearme": "Discover nearby places and services.",
             "/bookings": "View and manage your bookings.",
             "/profile": "See your account details.",
         }
@@ -176,10 +176,10 @@ def main(page: ft.Page):
         display_name = page.session.store.get("user_name") or "Guest"
         username_text = page.session.store.get("user_username") or "Guest"
 
-        if active_route == "/near_us":
-            page_content = placeholder_card(
-                "Near Us",
-                "This section will show nearby places and related information.",
+        if active_route == "/nearme":
+            page_content = ft.Container(
+                expand=True,
+                content=nearme_view(page)  
             )
         elif active_route == "/bookings":
             page_content = placeholder_card(
@@ -187,7 +187,7 @@ def main(page: ft.Page):
                 "This section will show the user booking history and booking management.",
             )
         elif active_route == "/profile":
-            page_content = profile_content()
+            page_content = profile_view(page)  
         else:
             page_content = placeholder_card(
                 "Page",
@@ -279,7 +279,7 @@ def main(page: ft.Page):
     def route_change(e: ft.RouteChangeEvent):
         route = e.route
         page.views.clear()
-
+        print(route)
         # Splash
         if route == "/":
             if is_authenticated():

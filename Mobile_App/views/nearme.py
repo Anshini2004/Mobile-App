@@ -36,11 +36,7 @@ async def geocode(client: httpx.AsyncClient, location: str):
     return None
 
 
-async def main(page: ft.Page):
-    page.title = "Activity Map"
-    page.padding = 0
-    page.spacing = 0
-
+def nearme_view(page: ft.Page):
     geo = ftg.Geolocator()
     activity_coords = []
 
@@ -158,6 +154,11 @@ async def main(page: ft.Page):
 
         async with httpx.AsyncClient() as client:
             res = await client.get(API_URL, headers=headers)
+
+            if res.status_code == 401:
+                page.go("/")
+                return
+
             res.raise_for_status()
             activities = res.json()
 
@@ -222,18 +223,16 @@ async def main(page: ft.Page):
         on_click=lambda e: show_near_me_dialog()
     )
 
-    page.add(
-        ft.Stack(
-            expand=True,
-            controls=[
-                map_view,
-                popup_container,
-                ft.Container(near_me_btn, right=20, bottom=20),
-            ],
-        )
+    body = ft.Stack(
+        expand=True,
+        controls=[
+            map_view,
+            popup_container,
+            ft.Container(near_me_btn, right=20, bottom=20),
+        ],
     )
 
-    await fetch_activities()
+    # ✅ run async in background (IMPORTANT)
+    page.run_task(fetch_activities)
 
-
-ft.app(target=main)
+    return body
