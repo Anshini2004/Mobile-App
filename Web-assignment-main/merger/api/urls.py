@@ -1,6 +1,7 @@
 from .views import *
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     PaymentViewSet,
@@ -10,12 +11,14 @@ from .views import (
     ActivityViewSet,
     current_user, #to remove this
     UserViewSet,
+    AuthViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'activities', ActivityViewSet, basename='activity')
+router.register(r"auth", AuthViewSet, basename="auth")
 
 
 urlpatterns = [
@@ -34,4 +37,5 @@ urlpatterns = [
     path("activities/<int:pk>/", ActivityDetailView.as_view()),
     path("bookings/", BookingCreateView.as_view()),
     path('userprofile/', current_user, name='profile'), # Flet will GET here to get user info
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
