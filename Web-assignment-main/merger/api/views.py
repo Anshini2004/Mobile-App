@@ -334,3 +334,22 @@ class BookingCreateView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class ActivityViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Activity.objects.all()
+    serializer_class = ActivitySerializer
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]  # or custom, this is what prevents for example a POST to the API.
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    """
+    Returns data of the currently authenticated user.
+    """
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data)

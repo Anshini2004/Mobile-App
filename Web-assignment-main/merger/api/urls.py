@@ -6,9 +6,11 @@ from .views import (
     PaymentViewSet,
     ActivityListView,
     ActivityDetailView,
-    BookingCreateView
+    BookingCreateView,
+    ActivityViewSet,
+    current_user, #to remove this
+    UserViewSet,
 )
-from .viewsets import UserViewSet, current_user, ActivityViewSet
 
 router = DefaultRouter()
 router.register(r'payments', PaymentViewSet, basename='payments')
@@ -31,5 +33,5 @@ urlpatterns = [
     path("activities/", ActivityListView.as_view()),
     path("activities/<int:pk>/", ActivityDetailView.as_view()),
     path("bookings/", BookingCreateView.as_view()),
-    path('me/', current_user, name='api-me'), # Flet will GET here to get user info
+    path('userprofile/', current_user, name='profile'), # Flet will GET here to get user info
 ]
