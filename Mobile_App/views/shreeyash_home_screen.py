@@ -12,8 +12,7 @@ import flet as ft
 import threading
 import requests
 
-# BASE_URL = "http://127.0.0.1:8000"
-BASE_URL = "http://192.168.100.10:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
 TEAL   = "#2CBFB1"
 BG     = "#FFFFFF"
