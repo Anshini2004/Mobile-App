@@ -3,7 +3,7 @@
 import flet as ft
 from api.booking_api import get_bookings, cancel_booking
 from utils.constants import *
-from views.components import chip, stat_tile, nav_btn
+from views.components import chip, stat_tile
 
 def bookings_page(page: ft.Page, user_id: int = 1):
 
@@ -307,30 +307,7 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             stat_tile(f"Rs {total_spent:,.0f}", "Total Spent", TEXT_DARK),
         ]
 
-    # ── Header ────────────────────────────────────────────────────────────────
-    header_subtitle = ft.Text("Loading…", size=12, color=TEXT_MUTED)
-    header = ft.Container(
-        bgcolor=CARD_BG,
-        padding=pad_only(left=20, right=20, top=52, bottom=16),
-        shadow=ft.BoxShadow(blur_radius=8, color="#0F000000", offset=ft.Offset(0, 2)),
-        content=ft.Row(
-            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            controls=[
-                ft.Column(spacing=2, tight=True, controls=[
-                    ft.Text("My Bookings", size=22,
-                            weight=ft.FontWeight.W_800, color=TEXT_DARK),
-                    header_subtitle,
-                ]),
-                ft.Container(
-                    content=ft.Icon(ft.Icons.NOTIFICATIONS_NONE,
-                                    size=20, color=TEXT_DARK),
-                    width=38, height=38, bgcolor=TEAL_LIGHT,
-                    border_radius=19, alignment=CENTER,
-                ),
-            ],
-        ),
-    )
+
 
     # ── Scrollable body ───────────────────────────────────────────────────────
     middle_content = ft.Column(
@@ -357,25 +334,9 @@ def bookings_page(page: ft.Page, user_id: int = 1):
         ],
     )
 
-    # ── Bottom nav ────────────────────────────────────────────────────────────
-    bottom_nav = ft.Container(
-        bgcolor=CARD_BG,
-        border=ft.Border.only(top=ft.BorderSide(1, BORDER)),
-        padding=pad_sym(h=8, v=10),
-        content=ft.Row(
-            alignment=ft.MainAxisAlignment.SPACE_AROUND,
-            controls=[
-                nav_btn(ft.Icons.GRID_VIEW,            "Catalogue"),
-                nav_btn(ft.Icons.FAVORITE_BORDER,      "Wishlist"),
-                nav_btn(ft.Icons.CONFIRMATION_NUMBER,  "My Bookings", active=True),
-                nav_btn(ft.Icons.PERSON_OUTLINE,       "Profile"),
-            ],
-        ),
-    )
-
     layout = ft.Column(
         expand=True, spacing=0,
-        controls=[header, middle_content, bottom_nav],
+        controls=[middle_content],
     )
 
     rebuild_pills()
@@ -383,13 +344,13 @@ def bookings_page(page: ft.Page, user_id: int = 1):
     # ── async data loader — this is what Flet requires ────────────────────────
     async def load_data():
         nonlocal BOOKINGS
+        user_id = page.session.store.get("user_id") or 1
+        print(f"[bookings_page] Loading bookings for user_id: {user_id}")
         try: 
             BOOKINGS = await get_bookings(user_id)
+            print(f"[bookings_page] Loaded {len(BOOKINGS)} bookings")
             loading_indicator.visible = False
             error_banner.visible = False
-            header_subtitle.value = (
-                f"{len(BOOKINGS)} reservation{'s' if len(BOOKINGS) != 1 else ''}"
-            )
             rebuild_stats()
             rebuild_pills()
             rebuild_cards()

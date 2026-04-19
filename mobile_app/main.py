@@ -11,6 +11,7 @@ from views.catalogue_view import catalogue_view
 from components.bottom_nav import bottom_nav
 from views.nearme import nearme_view
 from views.profile import profile_view
+from views.booking_view import bookings_page
 
 
 def main(page: ft.Page):
@@ -182,9 +183,10 @@ def main(page: ft.Page):
                 content=nearme_view(page)  
             )
         elif active_route == "/bookings":
-            page_content = placeholder_card(
-                "Bookings",
-                "This section will show the user booking history and booking management.",
+            user_id = page.session.store.get("user_id") or 1
+            page_content = ft.Container(
+                expand=True,
+                content=bookings_page(page, user_id)
             )
         elif active_route == "/profile":
             page_content = profile_view(page)  
@@ -296,7 +298,9 @@ def main(page: ft.Page):
             page.views.append(login_view(page))
 
         # Main app routes (TAB SYSTEM)
-        elif route in ["/home", "/nearme", "/profile"]:
+        elif route == "/home":
+            page.views.append(build_tab_shell(route))
+        elif route in ["/nearme", "/bookings", "/profile"]:
             if is_authenticated():
                 page.views.append(build_tab_shell(route))
             else:

@@ -11,8 +11,8 @@ def bottom_nav(page: ft.Page, active_route: str):
     def nav_item(icon_name, label, route):
         selected = active_route == route
 
-        def go_route(e):
-            page.go(route)
+        async def go_route(e):
+            await page.push_route(route)
 
         return ft.Container(
             expand=True,
