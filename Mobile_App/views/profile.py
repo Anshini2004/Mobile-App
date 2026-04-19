@@ -1,50 +1,41 @@
-import flet as ft
+import asyncio
 import re
+import flet as ft
 import httpx
+
+from utils.api_client import get_auth_headers, api_logout
+
+API_BASE_URL = "http://127.0.0.1:8000/api"
+
 
 def profile_view(page: ft.Page):
 
-    USER_TOKEN = page.session.store.get("access_token")
-    API_BASE_URL = "http://127.0.0.1:8000/api/"
+    TEAL = "#1ab4c8"
+    CARD_BG = "#ffffff"
+    RED = "#e05252"
+    GREYED = "#cccccc"
 
-    TEAL      = "#1ab4c8"
-    TEAL_DARK = "#007b8f"
-    CARD_BG   = "#ffffff"
-    LABEL_CLR = "#7a9aaa"
-    TEXT_CLR  = "#1c3340"
-    HINT_CLR  = "#9bb8c4"
-    RED       = "#e05252"
-    GREYED    = "#cccccc"
-
-    # ---------------- VALIDATORS ----------------
-    def validate_email(v): return re.match(r'^[\w\.-]+@[A-Za-z]+\.[A-Za-z]+$', v)
-    def validate_phone(v): return v.isdigit() and len(v) >= 8
-    def validate_username(v): return re.match(r'^\w{3,}$', v)
-    def validate_password(v): return re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', v)
-
-    # ---------------- GET USER ----------------
-   
-        
+    def validate_email(v): return re.match(r'^[\w\.-]+@[A-Za-z]+\.[A-Za-z]+$', v or "") is not None
+    def validate_phone(v): return (v or "").isdigit() and len(v or "") >= 8
+    def validate_username(v): return re.match(r'^\w{3,}$', v or "") is not None
+    def validate_password(v): return v == "" or re.match(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', v or "") is not None
 
     user_data = page.session.store.get("user_data") or {}
 
-    full_name = f"{user_data.get('first_name','')} {user_data.get('last_name','')}"
-    email = user_data.get('email','')
-
-    # ---------------- AVATAR ----------------
-    avatar_section = ft.Column(
+    avatar = ft.Column(
         [
             ft.Container(
                 content=ft.Icon(ft.Icons.PERSON, color=TEAL, size=54),
-                width=90,
-                height=90,
-                border_radius=45,
+                width=90, height=90, border_radius=45,
                 bgcolor="#cceef6",
                 border=ft.border.all(3, TEAL),
-                alignment=ft.Alignment(0, 0),
+                alignment=ft.Alignment.CENTER,
             ),
-            ft.Text(full_name, size=18, weight=ft.FontWeight.BOLD, color=TEXT_CLR),
-            ft.Text(email, size=12, color=HINT_CLR),
+            ft.Text(
+                f"{user_data.get('first_name','')} {user_data.get('last_name','')}",
+                size=18, weight=ft.FontWeight.BOLD, color="#FFFFFF"
+            ),
+            ft.Text(user_data.get("email", ""), size=12, color="#ffffff"),
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=6,
@@ -52,22 +43,29 @@ def profile_view(page: ft.Page):
 
     form_fields = []
 
-    # ---------------- FIELD ----------------
-    def field_row(label, value, validator=None, is_password=False):
-        error = ft.Text("", color=RED, size=10)
+    def field(label, value, validator=None, password=False):
+        err = ft.Text("", color=RED, size=10)
 
         tf = ft.TextField(
             value=value,
             border=ft.InputBorder.NONE,
-            text_style=ft.TextStyle(size=14, color=TEXT_CLR),
-            password=is_password,
+            password=password,
+            can_reveal_password=password,
             disabled=True,
-            expand=True
+            expand=True,
+            color="#000000"
         )
 
         def on_change(e):
             if validator:
-                error.value = "" if validator(tf.value) else f"Invalid {label.lower()}"
+                err.value = "" if validator(tf.value) else f"Invalid {label.lower()}"
+
+            save_btn.disabled = any(
+                f["validator"] and not f["validator"](f["tf"].value)
+                for f in form_fields if not f["tf"].disabled
+            )
+
+            update_btns()
             page.update()
 
         if validator:
@@ -75,114 +73,128 @@ def profile_view(page: ft.Page):
             form_fields.append({"label": label, "tf": tf, "validator": validator})
 
         return ft.Container(
-            content=ft.Column(
-                [
-                    ft.Text(label, size=9, color=LABEL_CLR),
-                    ft.Row([tf]),
-                    error,
-                    ft.Divider(height=1, color="#d0e8f0"),
-                ]
-            ),
-            padding=ft.padding.symmetric(horizontal=20, vertical=10),
+            content=ft.Column([
+                ft.Text(label, size=10, color="#000000"),
+                ft.Row([tf]),
+                err,
+                ft.Divider(height=1),
+            ]),
+            padding=10
         )
 
-    password_field = field_row("PASSWORD", "", validate_password, True)
+    password_field = field("PASSWORD", "", validate_password, True)
 
-    form_card = ft.Container(
-        content=ft.Column(
-            [
-                field_row("FIRST NAME", user_data.get("first_name",""), validate_username),
-                field_row("LAST NAME", user_data.get("last_name",""), validate_username),
-                field_row("USERNAME", user_data.get("username",""), validate_username),
-                field_row("PHONE NUMBER", user_data.get("phone",""), validate_phone),
-                field_row("EMAIL ADDRESS", user_data.get("email",""), validate_email),
-                password_field,
-            ]
-        ),
+    form = ft.Container(
+        content=ft.Column([
+            field("FIRST NAME", user_data.get("first_name",""), validate_username),
+            field("LAST NAME", user_data.get("last_name",""), validate_username),
+            field("USERNAME", user_data.get("username",""), validate_username),
+            field("PHONE", user_data.get("phone",""), validate_phone),
+            field("EMAIL", user_data.get("email",""), validate_email),
+            password_field,
+        ]),
         bgcolor=CARD_BG,
         border_radius=20,
-        margin=ft.margin.symmetric(horizontal=18),
+        margin=18,
     )
 
-    # ---------------- BUTTONS ----------------
-    def enable_edit(e):
-        for f in form_fields:
-            f["tf"].disabled = False
-        save_btn.disabled = False
+    def update_btns():
+        save_btn.bgcolor = GREYED if save_btn.disabled else TEAL
+        edit_btn.bgcolor = GREYED if edit_btn.disabled else TEAL
         page.update()
 
-    def save(e):
-        headers = {"Authorization": f"Token {USER_TOKEN}"}
+    async def save_async():
+        headers = get_auth_headers(page)
 
         payload = {
-            f["label"].lower().replace(" ","_"): f["tf"].value
+            f["label"].lower().replace(" ", "_"): f["tf"].value
             for f in form_fields if f["label"] != "PASSWORD"
         }
 
-        pw = next(f for f in form_fields if f["label"]=="PASSWORD")["tf"].value
-        if pw: payload["password"] = pw
+        pw = next(f for f in form_fields if f["label"] == "PASSWORD")["tf"].value
+        if pw:
+            payload["password"] = pw
 
-        try:
-            httpx.patch(f"{API_BASE_URL}users/{user_data['id']}/", json=payload, headers=headers)
-
-            dlg = ft.AlertDialog(
-                title=ft.Text("Success"),
-                content=ft.Text("Saved successfully"),
-                actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())]
+        async with httpx.AsyncClient() as client:
+            resp = await client.patch(
+                f"{API_BASE_URL}/auth/me/",
+                json=payload,
+                headers=headers
             )
-            page.show_dialog(dlg)
 
-        except Exception as ex:
-            dlg = ft.AlertDialog(
-                title=ft.Text("Error"),
-                content=ft.Text(str(ex)),
-                actions=[ft.TextButton("OK", on_click=lambda e: page.pop_dialog())]
-            )
-            page.show_dialog(dlg)
+        if resp.status_code == 401:
+            page.go("/")
+            return
 
-    edit_btn = ft.Container(
-        content=ft.Text("Edit Profile", color="white"),
-        bgcolor=TEAL,
-        height=50,
-        alignment=ft.Alignment(0,0),
-        on_click=enable_edit
-    )
+        if resp.status_code == 200:
+            page.session.store.set("user_data", resp.json())
 
-    save_btn = ft.Container(
-        content=ft.Text("Save Changes", color="white"),
-        bgcolor=GREYED,
-        height=50,
-        alignment=ft.Alignment(0,0),
-        disabled=True,
-        on_click=save
-    )
+            page.snack_bar = ft.SnackBar(ft.Text("Saved"), bgcolor=TEAL)
+            page.snack_bar.open = True
 
-    def logout(e):
-        from utils.api_client import clear_auth_session
+            for f in form_fields:
+                f["tf"].disabled = True
 
-        clear_auth_session(page)
+            save_btn.disabled = True
+            edit_btn.disabled = False
+            update_btns()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Error saving"), bgcolor=RED)
+            page.snack_bar.open = True
+
+        page.update()
+
+    def save(e):
+        page.run_task(save_async)
+
+    def edit(e):
+        for f in form_fields:
+            f["tf"].disabled = False
+        save_btn.disabled = False
+        edit_btn.disabled = True
+        update_btns()
+
+    async def logout_async():
+        await asyncio.to_thread(api_logout, page)
         page.go("/login")
 
-    logout_btn = ft.Container(
-        content=ft.Text("Sign Out", color=RED),
-        alignment=ft.Alignment(0,0),
-        on_click=logout
+    def logout(e):
+        page.run_task(logout_async)
+
+    save_btn = ft.Container(
+        content=ft.Text("Save", color="white"),
+        height=50,
+        bgcolor=GREYED,
+        border_radius=20,
+        alignment=ft.Alignment.CENTER,
+        disabled=True,
+        on_click=save,
     )
 
-    # ---------------- BODY ----------------
-    return ft.Column(
-        [
-            ft.Container(height=24),
-            ft.Container(content=avatar_section, alignment=ft.Alignment(0,0)),
-            ft.Container(height=20),
-            form_card,
-            ft.Container(height=20),
-            edit_btn,
-            ft.Container(height=10),
-            save_btn,
-            ft.Container(height=10),
-            logout_btn,
-        ],
-        scroll=ft.ScrollMode.AUTO,
-        expand=True
+    edit_btn = ft.Container(
+        content=ft.Text("Edit", color="white"),
+        height=50,
+        bgcolor=TEAL,
+        border_radius=20,
+        alignment=ft.Alignment.CENTER,
+        on_click=edit,
     )
+
+    logout_btn = ft.Container(
+        content=ft.Text("Logout", color=RED),
+        on_click=logout,
+        alignment=ft.Alignment.CENTER,
+        padding=10,
+    )
+
+    body = ft.Column([
+        ft.Container(height=20),
+        ft.Container(content=avatar, alignment=ft.Alignment.CENTER),
+        ft.Container(height=20),
+        form,
+        edit_btn,
+        save_btn,
+        logout_btn,
+    ], scroll=ft.ScrollMode.AUTO)
+
+    return body
