@@ -127,6 +127,8 @@ def login_view(page: ft.Page):
         if result["ok"]:
             payload = result["data"]
             save_auth_session(page, payload)
+            page.session.store.set("user_id", payload["user"]["id"])
+            page.session.store.set("user_data", payload["user"])
 
             # Preload catalogue before routing to /home
             try:

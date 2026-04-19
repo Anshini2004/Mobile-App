@@ -156,7 +156,7 @@ def nearme_view(page: ft.Page):
             res = await client.get(API_URL, headers=headers)
 
             if res.status_code == 401:
-                page.go("/")
+                await page.push("/")
                 return
 
             res.raise_for_status()

@@ -9,8 +9,11 @@ def success_view(page, booking_id):
     BORDER = "#E0E0E0"
     TEXT_MUTED = "#2E2E2E"
 
+    # ---------------------------
+    # ✅ FIXED NAV FUNCTION
+    # ---------------------------
     def go_home(e):
-        page.go("/home")
+        page.run_task(page.push_route, "/home")
 
     step_bar = ft.Row(
         [
@@ -86,6 +89,9 @@ def success_view(page, booking_id):
         ),
     )
 
+    # ---------------------------
+    # SIMULATION (UNCHANGED)
+    # ---------------------------
     async def simulate():
         await asyncio.sleep(3)
         icon_container.bgcolor = "#E8F5E9"
@@ -113,7 +119,6 @@ def success_view(page, booking_id):
                     width=380,
                     content=ft.Column(
                         [
-                            
                             ft.Text("CHECKOUT", size=12, color=TEXT_MUTED),
                             ft.Text(
                                 "Complete your booking",
@@ -145,7 +150,7 @@ def success_view(page, booking_id):
                                             border_radius=12,
                                             bgcolor=PRIMARY,
                                             alignment=ft.alignment.Alignment(0, 0),
-                                            on_click=go_home,
+                                            on_click=go_home,  # ✅ FIXED
                                             content=ft.Text(
                                                 "Back to Home",
                                                 color="white",

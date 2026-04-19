@@ -25,9 +25,9 @@ def payment_view(page: ft.Page):
 
     def go_back(e):
         if activity_id:
-            page.go(f"/activity/{activity_id}")
+            page.run_task(page.push_route, f"/activity/{activity_id}")
         else:
-            page.go("/")
+            page.run_task(page.push_route, "/")
 
     def section(title, content):
         return ft.Container(
@@ -236,7 +236,7 @@ def payment_view(page: ft.Page):
                     page.session.store.remove("booking_data")
 
                 booking_id = str(data.get("booking_id", ""))
-                page.go(f"/success/{booking_id}")
+                await page.push_route(f"/success/{booking_id}")
             else:
                 err_msg = data.get("error") or str(data.get("errors", "Payment failed."))
                 show_error(err_msg)

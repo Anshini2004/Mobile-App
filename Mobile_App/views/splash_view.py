@@ -1,27 +1,41 @@
 import flet as ft
-import asyncio
 
 
 def splash_view(page: ft.Page):
 
-    button = ft.Container()
+    # ---------------------------
+    # NAVIGATION FUNCTIONS
+    # ---------------------------
+    def go_home(e):
+        page.run_task(page.push_route, "/home")
 
-    async def handle_click(e):
-        page.go("/home")
+    def go_login(e):
+        page.run_task(page.push_route, "/login")
 
-    button.content = ft.Text(
-        "Discover",
-        color="black",
-        size=16,
-        weight=ft.FontWeight.W_600,
+    def go_register(e):
+        page.run_task(page.push_route, "/register")
+
+    # ---------------------------
+    # BUTTON
+    # ---------------------------
+    button = ft.Container(
+        content=ft.Text(
+            "Discover",
+            color="black",
+            size=16,
+            weight=ft.FontWeight.W_600,
+        ),
+        height=55,
+        width=200,
+        border_radius=30,
+        bgcolor="#EDEDED",
+        alignment=ft.alignment.Alignment(0, 0),
+        on_click=go_home,
     )
-    button.height = 55
-    button.width = 200
-    button.border_radius = 30
-    button.bgcolor = "#EDEDED"
-    button.alignment = ft.alignment.Alignment(0, 0)
-    button.on_click = handle_click
 
+    # ---------------------------
+    # VIEW
+    # ---------------------------
     return ft.View(
         route="/",
         expand=True,
@@ -33,22 +47,22 @@ def splash_view(page: ft.Page):
                 fit=ft.StackFit.EXPAND,
                 controls=[
 
-                    # 🖼️ BACKGROUND IMAGE
+                    # BACKGROUND IMAGE
                     ft.Image(
                         src="splash.jpg",
-                        fit="cover",  # ✅ correct for old versions
+                        fit="cover",
                         expand=True,
                         width=float("inf"),
                         height=float("inf"),
                     ),
 
-                    # 🌑 DARK OVERLAY
+                    # DARK OVERLAY
                     ft.Container(
                         expand=True,
                         bgcolor="#55000000",
                     ),
 
-                    # 📄 CONTENT
+                    # CONTENT
                     ft.Container(
                         expand=True,
                         padding=ft.padding.only(left=30, right=30, bottom=40),
@@ -88,33 +102,30 @@ def splash_view(page: ft.Page):
 
                                 ft.Container(height=10),
 
-                                # ✅ OLD VERSION FRIENDLY LOGIN ROW
+                                # LOGIN / REGISTER
                                 ft.Container(
-                                    width=200,  # same as button
+                                    width=200,
                                     alignment=ft.alignment.Alignment(0, 0),
                                     content=ft.Row(
                                         [
-                                            # LEFT SIDE
                                             ft.Container(
                                                 width=80,
                                                 alignment=ft.alignment.Alignment(-1, 0),
                                                 content=ft.TextButton(
                                                     "Log In",
-                                                    on_click=lambda e: page.go("/login"),
+                                                    on_click=go_login,
                                                     style=ft.ButtonStyle(color="white70"),
                                                 ),
                                             ),
 
-                                            # CENTER DOT
                                             ft.Text("·", color="white54", size=16),
 
-                                            # RIGHT SIDE
                                             ft.Container(
                                                 width=80,
                                                 alignment=ft.alignment.Alignment(1, 0),
                                                 content=ft.TextButton(
                                                     "Sign Up",
-                                                    on_click=lambda e: page.go("/register"),
+                                                    on_click=go_register,
                                                     style=ft.ButtonStyle(color="white70"),
                                                 ),
                                             ),

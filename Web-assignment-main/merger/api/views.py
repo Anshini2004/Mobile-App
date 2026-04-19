@@ -115,7 +115,12 @@ def create_booking_api(request):
 
         serializer = BookingSerializer(data=data)
         if serializer.is_valid():
-            booking = serializer.save()
+            user_id = data.get("customer_id")  # fallback if needed
+
+            if request.user.is_authenticated:
+                booking = serializer.save(customer=request.user)
+            else:
+                booking = serializer.save(customer_id=user_id)
             return JsonResponse({
                 "message": "Booking created",
                 "booking_id": booking.id
@@ -494,3 +499,15 @@ class ActivityViewSet(ViewSet):
         ]
 
         return Response(result)
+
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_bookings(request):
+    bookings = Booking.objects.filter(customer=request.user)
+    serializer = BookingSerializer(bookings, many=True)
+    return Response(serializer.data)

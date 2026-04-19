@@ -29,30 +29,29 @@ CACHE_KEY = "catalogue_data"
 
 # ─── Individual activity card ─────────────────────────────────────────────────
 
-def build_activity_card(activity: dict) -> ft.Column:
-    name        = activity.get("name", "—")
+def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
+    name = activity.get("name", "—")
     description = activity.get("description", "No description available.")
-    images      = activity.get("images", [])
-    avg_rating  = activity.get("average_rating")
-    image_url   = images[0] if images else None
+    avg_rating = activity.get("avg_rating")
+
+    image_url = activity.get("image")
+    if image_url:
+        image_url = f"http://127.0.0.1:8000{image_url}"
+    else:
+        image_url = None
 
     short_desc = description[:100] + "…" if len(description) > 100 else description
 
     overlay = ft.Container(
-        content=ft.Text(
-            short_desc,
-            color=WHITE,
-            size=10,
-            text_align=ft.TextAlign.CENTER,
-        ),
+        content=ft.Text(short_desc, color=WHITE, size=10, text_align=ft.TextAlign.CENTER),
         bgcolor=BLACK_78,
-        padding=ft.padding.all(8),
+        padding=8,
         alignment=ft.Alignment(0, 0),
-        border_radius=ft.border_radius.all(12),
+        border_radius=12,
         width=CARD_WIDTH,
         height=CARD_HEIGHT,
         opacity=0,
-        animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT),
+        animate_opacity=200,
     )
 
     if image_url:
@@ -61,43 +60,17 @@ def build_activity_card(activity: dict) -> ft.Column:
             fit="cover",
             width=CARD_WIDTH,
             height=CARD_HEIGHT,
-            error_content=ft.Container(
-                bgcolor=TEAL_LIGHT,
-                width=CARD_WIDTH,
-                height=CARD_HEIGHT,
-                content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN, size=32),
-                alignment=ft.Alignment(0, 0),
-            ),
         )
     else:
         bg_image = ft.Container(
             bgcolor=TEAL_LIGHT,
             width=CARD_WIDTH,
             height=CARD_HEIGHT,
-            content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN, size=32),
+            content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN),
             alignment=ft.Alignment(0, 0),
         )
 
-    card_stack = ft.Stack(
-        controls=[bg_image, overlay],
-        width=CARD_WIDTH,
-        height=CARD_HEIGHT,
-    )
-
-    card_container = ft.Container(
-        content=card_stack,
-        width=CARD_WIDTH,
-        height=CARD_HEIGHT,
-        border_radius=ft.border_radius.all(12),
-        clip_behavior=ft.ClipBehavior.HARD_EDGE,
-        shadow=ft.BoxShadow(
-            spread_radius=0,
-            blur_radius=8,
-            color=BLACK_12,
-            offset=ft.Offset(0, 3),
-        ),
-        animate=ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT),
-    )
+    stack = ft.Stack([bg_image, overlay], width=CARD_WIDTH, height=CARD_HEIGHT)
 
     def on_enter(e):
         overlay.opacity = 1
@@ -107,81 +80,56 @@ def build_activity_card(activity: dict) -> ft.Column:
         overlay.opacity = 0
         overlay.update()
 
-    card_gesture = ft.GestureDetector(
-        content=card_container,
+    # ✅ CLICK HANDLER HERE
+    def go_to_activity(e):
+        page.go(f"/activity/{activity['id']}")
+
+    card = ft.GestureDetector(
+        content=ft.Container(
+            content=stack,
+            border_radius=12,
+            clip_behavior=ft.ClipBehavior.HARD_EDGE,
+        ),
         on_enter=on_enter,
         on_exit=on_exit,
-        on_tap=lambda _: None,
-    )
-
-    name_control = ft.GestureDetector(
-        content=ft.Text(
-            name,
-            size=12,
-            weight=ft.FontWeight.W_600,
-            color=TEXT_DARK,
-            width=CARD_WIDTH,
-            overflow=ft.TextOverflow.ELLIPSIS,
-            max_lines=1,
-        ),
-        on_tap=lambda _: None,
+        on_tap=go_to_activity,   # 🔥 FIXED
     )
 
     if avg_rating is not None:
-        rating_row = ft.Row(
-            controls=[
+        rating = ft.Row(
+            [
                 ft.Icon(ft.Icons.STAR, color=AMBER, size=13),
-                ft.Text(
-                    str(avg_rating),
-                    size=12,
-                    color=TEXT_DARK,
-                    weight=ft.FontWeight.W_500,
-                ),
-            ],
-            spacing=2,
-            tight=True,
+                ft.Text(str(avg_rating)),
+            ]
         )
     else:
-        rating_row = ft.Text("No reviews", size=11, color=TEXT_MUTED, italic=True)
+        rating = ft.Text("No reviews", size=11, color=TEXT_MUTED)
 
     return ft.Column(
-        controls=[card_gesture, name_control, rating_row],
+        [card, ft.Text(name), rating],
         spacing=4,
-        tight=True,
     )
-
 
 # ─── Category section ─────────────────────────────────────────────────────────
 
-def build_category_section(category_data: dict):
+def build_category_section(page: ft.Page, category_data: dict):
     activity_type = category_data.get("activity_type", "")
-    activities    = category_data.get("activities", [])
+    activities = category_data.get("activities", [])
 
     if not activities:
         return None
 
-    cards = [build_activity_card(a) for a in activities]
-
-    scrollable_row = ft.Row(
-        controls=cards,
-        scroll=ft.ScrollMode.AUTO,
-        spacing=18,
-    )
+    cards = [build_activity_card(page, a) for a in activities]
 
     return ft.Column(
         controls=[
-            ft.Text(
-                activity_type,
-                size=17,
-                weight=ft.FontWeight.BOLD,
-                color=TEXT_DARK,
-            ),
-            ft.Container(
-                content=scrollable_row,
-                padding=ft.padding.only(bottom=4),
-            ),
-        ],
-        spacing=10,
+            ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
+           ft.Row(
+    controls=cards,
+    scroll=ft.ScrollMode.AUTO,
+    spacing=12,
+)
+        ]
     )
 
 
@@ -308,13 +256,40 @@ def catalogue_view(page: ft.Page) -> ft.Column:
     def populate_sections(data):
         content_col.controls.clear()
 
-        for category in data:
-            section = build_category_section(category)
-            if section is not None:
-                content_col.controls.append(section)
+        # GROUP BY activity_type
+        grouped = {}
+
+        for activity in data:
+            atype = activity.get("activity_type", "Other")
+
+            if atype not in grouped:
+                grouped[atype] = []
+
+            grouped[atype].append(activity)
+
+        # BUILD UI SECTIONS
+        for activity_type, activities in grouped.items():
+
+            section = ft.Column(
+                controls=[
+                    ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
+
+                    ft.Container(
+                        content=ft.ListView(
+                            controls=[
+                                build_activity_card(page, a) for a in activities
+                            ],
+                            horizontal=True,
+                            spacing=12,
+                            height=180,
+                        )
+                    ),
+                ]
+            )
+
+            content_col.controls.append(section)
 
         loading_ring.visible = False
-        error_banner.visible = False
         content_col.visible = True
         page.update()
 
