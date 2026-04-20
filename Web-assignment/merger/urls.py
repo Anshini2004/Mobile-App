@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from .shared_views import (
     CustomersPageView,
@@ -40,6 +40,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('user/activity/', views.activity_list, name='activity_list'),
     path('contact/', views.contact, name='contact'),
+    path('api/', include('merger.api.urls')),
     
     # User cancel booking
     path('user/booking/cancel/<int:booking_id>/', views.user_cancel_booking, name='user_cancel_booking'),
@@ -69,5 +70,6 @@ urlpatterns = [
          name='password_reset_complete'),
     
     path('signup/termsandcondition/', views.terms_and_condition, name='termsandcondition'),
-    
+
+    path('api/', include('merger.api.urls')),
 ]
