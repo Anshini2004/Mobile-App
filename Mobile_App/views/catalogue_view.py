@@ -8,7 +8,6 @@ import requests
 API_BASE_URL  = "http://127.0.0.1:8000/grandblue"
 CATALOGUE_URL = f"{API_BASE_URL}/api/activities/"
 
-# Colour palette (mirrors the teal/white design in the mock-up)
 TEAL_MAIN  = "#26B5A0"
 TEAL_LIGHT = "#E0F5F2"
 TEAL_DARK  = "#1A8C7A"
@@ -26,8 +25,6 @@ CARD_HEIGHT = 110
 
 CACHE_KEY = "catalogue_data"
 
-
-# ─── Individual activity card ─────────────────────────────────────────────────
 
 def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
     name = activity.get("name", "—")
@@ -80,7 +77,6 @@ def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
         overlay.opacity = 0
         overlay.update()
 
-    # ✅ CLICK HANDLER HERE
     def go_to_activity(e):
         page.go(f"/activity/{activity['id']}")
 
@@ -92,7 +88,7 @@ def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
         ),
         on_enter=on_enter,
         on_exit=on_exit,
-        on_tap=go_to_activity,   # 🔥 FIXED
+        on_tap=go_to_activity,
     )
 
     if avg_rating is not None:
@@ -110,7 +106,6 @@ def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
         spacing=4,
     )
 
-# ─── Category section ─────────────────────────────────────────────────────────
 
 def build_category_section(page: ft.Page, category_data: dict):
     activity_type = category_data.get("activity_type", "")
@@ -124,16 +119,14 @@ def build_category_section(page: ft.Page, category_data: dict):
     return ft.Column(
         controls=[
             ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
-           ft.Row(
-    controls=cards,
-    scroll=ft.ScrollMode.AUTO,
-    spacing=12,
-)
+            ft.Row(
+                controls=cards,
+                scroll=ft.ScrollMode.AUTO,
+                spacing=12,
+            )
         ]
     )
 
-
-# ─── Grand Blue hero section ──────────────────────────────────────────────────
 
 HERO_IMAGE_SRC = "/hero_bg.jpg"
 
@@ -215,8 +208,6 @@ def build_hero_banner() -> ft.Container:
     )
 
 
-# ─── Main catalogue view ──────────────────────────────────────────────────────
-
 def catalogue_view(page: ft.Page) -> ft.Column:
     loading_ring = ft.Container(
         content=ft.Column(
@@ -256,33 +247,29 @@ def catalogue_view(page: ft.Page) -> ft.Column:
     def populate_sections(data):
         content_col.controls.clear()
 
-        # GROUP BY activity_type
         grouped = {}
 
         for activity in data:
             atype = activity.get("activity_type", "Other")
-
             if atype not in grouped:
                 grouped[atype] = []
-
             grouped[atype].append(activity)
 
-        # BUILD UI SECTIONS
         for activity_type, activities in grouped.items():
 
             section = ft.Column(
                 controls=[
                     ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
 
-                    ft.Container(
-                        content=ft.ListView(
+                    ft.Container(                          # FIX 2: Row + ALWAYS scrollbar
+                        content=ft.Row(
                             controls=[
                                 build_activity_card(page, a) for a in activities
                             ],
-                            horizontal=True,
+                            scroll=ft.ScrollMode.ALWAYS,
                             spacing=12,
-                            height=180,
-                        )
+                        ),
+                        height=200,                        # +20 to give scrollbar breathing room
                     ),
                 ]
             )
@@ -295,7 +282,6 @@ def catalogue_view(page: ft.Page) -> ft.Column:
 
     def load_catalogue():
         try:
-            # Use cache first
             cached_data = page.session.store.get(CACHE_KEY)
             if cached_data:
                 populate_sections(cached_data)
@@ -305,9 +291,7 @@ def catalogue_view(page: ft.Page) -> ft.Column:
             response.raise_for_status()
             data = response.json()
 
-            # Save cache
             page.session.store.set(CACHE_KEY, data)
-
             populate_sections(data)
 
         except requests.exceptions.ConnectionError:
@@ -328,7 +312,6 @@ def catalogue_view(page: ft.Page) -> ft.Column:
             error_text.value = f"Unexpected error: {exc}"
             page.update()
 
-    # If cache exists, skip spinner immediately
     cached_data = page.session.store.get(CACHE_KEY)
     if cached_data:
         populate_sections(cached_data)
@@ -341,6 +324,7 @@ def catalogue_view(page: ft.Page) -> ft.Column:
             error_banner,
             loading_ring,
             content_col,
+            ft.Container(height=80),                     # FIX 1: nav bar spacer
         ],
         spacing=20,
         scroll=ft.ScrollMode.AUTO,
