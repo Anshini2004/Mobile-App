@@ -1,18 +1,3 @@
-"""
-Drop this file into mobile_app/views/catalogue_view.py (mobile-app project).
-It replaces the existing catalogue_view.py entirely.
-
-Requirements:
-    pip install requests flet
-
-The API is called at:
-    GET http://127.0.0.1:8000/api/activities/
-
-Change API_BASE_URL below if your Django server runs on a different host/port.
-
-Tested against Flet 0.84.
-"""
-
 import threading
 
 import flet as ft
@@ -20,7 +5,7 @@ import requests
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
-API_BASE_URL  = "http://127.0.0.1:8000"
+API_BASE_URL  = "http://127.0.0.1:8000/grandblue"
 CATALOGUE_URL = f"{API_BASE_URL}/api/activities/"
 
 # Colour palette (mirrors the teal/white design in the mock-up)
@@ -36,87 +21,57 @@ BLACK_35   = ft.Colors.with_opacity(0.35, "#000000")
 BLACK_12   = ft.Colors.with_opacity(0.12, "#000000")
 SHADOW_TEAL = ft.Colors.with_opacity(0.18, TEAL_DARK)
 
-CARD_WIDTH  = 188          # ~25% wider than original 150
+CARD_WIDTH  = 188
 CARD_HEIGHT = 110
+
+CACHE_KEY = "catalogue_data"
+
 
 # ─── Individual activity card ─────────────────────────────────────────────────
 
-def build_activity_card(activity: dict) -> ft.Column:
-    name        = activity.get("name", "—")
+def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
+    name = activity.get("name", "—")
     description = activity.get("description", "No description available.")
-    images      = activity.get("images", [])
-    avg_rating  = activity.get("average_rating")
-    image_url   = images[0] if images else None
+    avg_rating = activity.get("avg_rating")
+
+    image_url = activity.get("image")
+    if image_url:
+        image_url = f"http://127.0.0.1:8000{image_url}"
+    else:
+        image_url = None
 
     short_desc = description[:100] + "…" if len(description) > 100 else description
 
-    # ── Overlay (opacity=0 by default, fades to 1 on hover) ──────────────────
-    # Using opacity 0→1 instead of visible toggle so the animation actually runs
     overlay = ft.Container(
-        content=ft.Text(
-            short_desc,
-            color=WHITE,
-            size=10,
-            text_align=ft.TextAlign.CENTER,
-        ),
+        content=ft.Text(short_desc, color=WHITE, size=10, text_align=ft.TextAlign.CENTER),
         bgcolor=BLACK_78,
-        padding=ft.padding.all(8),
+        padding=8,
         alignment=ft.Alignment(0, 0),
-        border_radius=ft.border_radius.all(12),
+        border_radius=12,
         width=CARD_WIDTH,
         height=CARD_HEIGHT,
         opacity=0,
-        animate_opacity=ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT),
+        animate_opacity=200,
     )
 
-    # ── Background image (or teal fallback) ───────────────────────────────────
     if image_url:
         bg_image = ft.Image(
             src=image_url,
             fit="cover",
             width=CARD_WIDTH,
             height=CARD_HEIGHT,
-            error_content=ft.Container(
-                bgcolor=TEAL_LIGHT,
-                width=CARD_WIDTH,
-                height=CARD_HEIGHT,
-                content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN, size=32),
-                alignment=ft.Alignment(0, 0),
-            ),
         )
     else:
         bg_image = ft.Container(
             bgcolor=TEAL_LIGHT,
             width=CARD_WIDTH,
             height=CARD_HEIGHT,
-            content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN, size=32),
+            content=ft.Icon(ft.Icons.WAVES, color=TEAL_MAIN),
             alignment=ft.Alignment(0, 0),
         )
 
-    card_stack = ft.Stack(
-        controls=[bg_image, overlay],
-        width=CARD_WIDTH,
-        height=CARD_HEIGHT,
-    )
+    stack = ft.Stack([bg_image, overlay], width=CARD_WIDTH, height=CARD_HEIGHT)
 
-    card_container = ft.Container(
-        content=card_stack,
-        width=CARD_WIDTH,
-        height=CARD_HEIGHT,
-        border_radius=ft.border_radius.all(12),
-        clip_behavior=ft.ClipBehavior.HARD_EDGE,
-        shadow=ft.BoxShadow(
-            spread_radius=0,
-            blur_radius=8,
-            color=BLACK_12,
-            offset=ft.Offset(0, 3),
-        ),
-        animate=ft.Animation(200, ft.AnimationCurve.EASE_IN_OUT),
-    )
-
-    # ── Hover handler via GestureDetector ─────────────────────────────────────
-    # on_enter / on_exit are reliable even when an Image fills the card,
-    # unlike Container.on_hover which can be swallowed by child widgets.
     def on_enter(e):
         overlay.opacity = 1
         overlay.update()
@@ -125,97 +80,64 @@ def build_activity_card(activity: dict) -> ft.Column:
         overlay.opacity = 0
         overlay.update()
 
-    card_gesture = ft.GestureDetector(
-        content=card_container,
+    # ✅ CLICK HANDLER HERE
+    def go_to_activity(e):
+        page.go(f"/activity/{activity['id']}")
+
+    card = ft.GestureDetector(
+        content=ft.Container(
+            content=stack,
+            border_radius=12,
+            clip_behavior=ft.ClipBehavior.HARD_EDGE,
+        ),
         on_enter=on_enter,
         on_exit=on_exit,
-        on_tap=lambda _: None,          # placeholder — no navigation yet
+        on_tap=go_to_activity,   # 🔥 FIXED
     )
 
-    # ── Activity name (tappable) ──────────────────────────────────────────────
-    name_control = ft.GestureDetector(
-        content=ft.Text(
-            name,
-            size=12,
-            weight=ft.FontWeight.W_600,
-            color=TEXT_DARK,
-            width=CARD_WIDTH,
-            overflow=ft.TextOverflow.ELLIPSIS,
-            max_lines=1,
-        ),
-        on_tap=lambda _: None,
-    )
-
-    # ── Rating row ────────────────────────────────────────────────────────────
     if avg_rating is not None:
-        rating_row = ft.Row(
-            controls=[
+        rating = ft.Row(
+            [
                 ft.Icon(ft.Icons.STAR, color=AMBER, size=13),
-                ft.Text(
-                    str(avg_rating),
-                    size=12,
-                    color=TEXT_DARK,
-                    weight=ft.FontWeight.W_500,
-                ),
-            ],
-            spacing=2,
-            tight=True,
+                ft.Text(str(avg_rating)),
+            ]
         )
     else:
-        rating_row = ft.Text("No reviews", size=11, color=TEXT_MUTED, italic=True)
+        rating = ft.Text("No reviews", size=11, color=TEXT_MUTED)
 
     return ft.Column(
-        controls=[card_gesture, name_control, rating_row],
+        [card, ft.Text(name), rating],
         spacing=4,
-        tight=True,
     )
-
 
 # ─── Category section ─────────────────────────────────────────────────────────
 
-def build_category_section(category_data: dict):
+def build_category_section(page: ft.Page, category_data: dict):
     activity_type = category_data.get("activity_type", "")
-    activities    = category_data.get("activities", [])
+    activities = category_data.get("activities", [])
 
     if not activities:
         return None
 
-    cards = [build_activity_card(a) for a in activities]
-
-    scrollable_row = ft.Row(
-        controls=cards,
-        scroll=ft.ScrollMode.AUTO,
-        spacing=18,
-    )
+    cards = [build_activity_card(page, a) for a in activities]
 
     return ft.Column(
         controls=[
-            ft.Text(
-                activity_type,
-                size=17,
-                weight=ft.FontWeight.BOLD,
-                color=TEXT_DARK,
-            ),
-            ft.Container(
-                content=scrollable_row,
-                padding=ft.padding.only(bottom=4),
-            ),
-        ],
-        spacing=10,
+            ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
+           ft.Row(
+    controls=cards,
+    scroll=ft.ScrollMode.AUTO,
+    spacing=12,
+)
+        ]
     )
 
 
 # ─── Grand Blue hero section ──────────────────────────────────────────────────
-# Save the hero image as:  mobile_app/assets/hero_bg.png
-# main.py must pass  assets_dir="assets"  to ft.app() — see bottom of this file.
+
 HERO_IMAGE_SRC = "/hero_bg.jpg"
 
 def build_hero_banner() -> ft.Container:
-    """
-    Full-width hero taking ~1/3 of vertical space (300px on a 900px window).
-    Background: user-supplied ocean aerial photo with a dark teal overlay.
-    Title and slogan are left-aligned. 'Explore' + arrow is near the bottom.
-    """
     title = ft.Text(
         "Grand Blue",
         size=38,
@@ -251,11 +173,11 @@ def build_hero_banner() -> ft.Container:
 
     content = ft.Column(
         controls=[
-            ft.Container(expand=True),    # push title block to vertical centre
+            ft.Container(expand=True),
             title,
             ft.Container(height=4),
             slogan,
-            ft.Container(expand=3),       # tall spacer pushes explore well down
+            ft.Container(expand=3),
             ft.Row(
                 controls=[explore],
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -267,7 +189,6 @@ def build_hero_banner() -> ft.Container:
         spacing=0,
     )
 
-    # Dark semi-transparent teal overlay so text stays readable over the photo
     overlay = ft.Container(
         expand=True,
         bgcolor=ft.Colors.with_opacity(0.0, "#0D3B33"),
@@ -297,8 +218,6 @@ def build_hero_banner() -> ft.Container:
 # ─── Main catalogue view ──────────────────────────────────────────────────────
 
 def catalogue_view(page: ft.Page) -> ft.Column:
-    """Entry point. Returns a ft.Column ready to be added to the page."""
-
     loading_ring = ft.Container(
         content=ft.Column(
             controls=[
@@ -328,49 +247,94 @@ def catalogue_view(page: ft.Page) -> ft.Column:
         visible=False,
     )
 
-    # Activity sections populated after fetch (hero is always shown above)
     content_col = ft.Column(
         controls=[],
         spacing=20,
         visible=False,
     )
 
+    def populate_sections(data):
+        content_col.controls.clear()
+
+        # GROUP BY activity_type
+        grouped = {}
+
+        for activity in data:
+            atype = activity.get("activity_type", "Other")
+
+            if atype not in grouped:
+                grouped[atype] = []
+
+            grouped[atype].append(activity)
+
+        # BUILD UI SECTIONS
+        for activity_type, activities in grouped.items():
+
+            section = ft.Column(
+                controls=[
+                    ft.Text(activity_type, size=17, weight=ft.FontWeight.BOLD),
+
+                    ft.Container(
+                        content=ft.ListView(
+                            controls=[
+                                build_activity_card(page, a) for a in activities
+                            ],
+                            horizontal=True,
+                            spacing=12,
+                            height=180,
+                        )
+                    ),
+                ]
+            )
+
+            content_col.controls.append(section)
+
+        loading_ring.visible = False
+        content_col.visible = True
+        page.update()
+
     def load_catalogue():
         try:
+            # Use cache first
+            cached_data = page.session.store.get(CACHE_KEY)
+            if cached_data:
+                populate_sections(cached_data)
+                return
+
             response = requests.get(CATALOGUE_URL, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            content_col.controls.clear()
+            # Save cache
+            page.session.store.set(CACHE_KEY, data)
 
-            for category in data:
-                section = build_category_section(category)
-                if section is not None:
-                    content_col.controls.append(section)
-
-            loading_ring.visible = False
-            content_col.visible  = True
+            populate_sections(data)
 
         except requests.exceptions.ConnectionError:
             loading_ring.visible = False
             error_banner.visible = True
-            error_text.value     = "Could not connect to the server. Is it running on port 8000?"
+            error_text.value = "Could not connect to the server. Is it running?"
+            page.update()
 
         except requests.exceptions.Timeout:
             loading_ring.visible = False
             error_banner.visible = True
-            error_text.value     = "Request timed out. Please try again."
+            error_text.value = "Request timed out. Please try again."
+            page.update()
 
         except Exception as exc:
             loading_ring.visible = False
             error_banner.visible = True
-            error_text.value     = f"Unexpected error: {exc}"
+            error_text.value = f"Unexpected error: {exc}"
+            page.update()
 
-        page.update()
+    # If cache exists, skip spinner immediately
+    cached_data = page.session.store.get(CACHE_KEY)
+    if cached_data:
+        populate_sections(cached_data)
+    else:
+        threading.Thread(target=load_catalogue, daemon=True).start()
 
-    threading.Thread(target=load_catalogue, daemon=True).start()
-
-    # Wrap everything in a padded container so nothing touches the edges
     inner = ft.Column(
         controls=[
             build_hero_banner(),
@@ -385,10 +349,9 @@ def catalogue_view(page: ft.Page) -> ft.Column:
 
     return ft.Container(
         content=inner,
-        padding=ft.padding.symmetric(horizontal=18, vertical=14),
+        padding=ft.padding.symmetric(horizontal=12, vertical=14),
         expand=True,
     )
 
 
-# Alias expected by main.py
 activities_page = catalogue_view
