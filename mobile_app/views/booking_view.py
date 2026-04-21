@@ -354,28 +354,13 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             loading_indicator,
             error_banner,
             ft.Column(ref=cards_column, spacing=0, controls=[]),
+            ft.Container(height=100),
         ],
-    )
-
-    # ── Bottom nav ────────────────────────────────────────────────────────────
-    bottom_nav = ft.Container(
-        bgcolor=CARD_BG,
-        border=ft.Border.only(top=ft.BorderSide(1, BORDER)),
-        padding=pad_sym(h=8, v=10),
-        content=ft.Row(
-            alignment=ft.MainAxisAlignment.SPACE_AROUND,
-            controls=[
-                nav_btn(ft.Icons.GRID_VIEW,            "Catalogue"),
-                nav_btn(ft.Icons.FAVORITE_BORDER,      "Wishlist"),
-                nav_btn(ft.Icons.CONFIRMATION_NUMBER,  "My Bookings", active=True),
-                nav_btn(ft.Icons.PERSON_OUTLINE,       "Profile"),
-            ],
-        ),
     )
 
     layout = ft.Column(
         expand=True, spacing=0,
-        controls=[header, middle_content, bottom_nav],
+        controls=[header, middle_content],
     )
 
     rebuild_pills()
