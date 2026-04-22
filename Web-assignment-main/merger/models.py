@@ -48,6 +48,8 @@ class Activity(models.Model):
     description = models.TextField()
     base_price = models.PositiveIntegerField(help_text="Price per pax (Rs)")
     location = models.CharField(max_length=120, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     duration = models.CharField(max_length=60, blank=True)
     max_participants = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)

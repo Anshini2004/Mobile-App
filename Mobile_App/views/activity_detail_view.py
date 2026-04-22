@@ -569,6 +569,8 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         if activity_data["data"] is not None:
             build_page(activity_data["data"])
             page.update()
+            
+
 
     def build_page(d: dict):
         name = d.get("name", "Activity")
@@ -1082,7 +1084,8 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 ),
                                 layers=[
                                     ftm.TileLayer(
-                                        url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                        url_template="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    subdomains=["a", "b", "c", "d"],
                                     ),
                                     ftm.MarkerLayer(
                                         markers=[
@@ -1109,10 +1112,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                         ft.Text(location or "Location not set", color=TEXT, size=13),
                                     ],
                                 ),
-                                ft.TextButton(
-                                    "Open in Maps",
-                                    on_click=lambda e: page.launch_url(maps_url) if maps_url else None,
-                                ),
+                                
                             ],
                         ),
                     ],
@@ -1147,10 +1147,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 ],
                             ),
                         ),
-                        ft.TextButton(
-                            "Open in Maps",
-                            on_click=lambda e: page.launch_url(maps_url) if maps_url else None,
-                        ),
+                       
                     ],
                 )
             )
@@ -1364,7 +1361,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             color="#18000000",
             offset=ft.Offset(0, 4),
         ),
-        on_click=lambda e: page.go("/"),
+        on_click=lambda e: page.go("/home"),
         content=ft.Icon(
             ft.Icons.ARROW_BACK_IOS_NEW,
             color=PRIMARY,

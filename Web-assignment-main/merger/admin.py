@@ -42,7 +42,7 @@ class ActivityAdmin(admin.ModelAdmin):
             'fields': ('activity_rules', 'safety_equipment', 'cancellation_policy')
         }),
         ('Location', {
-            'fields': ('map_embed_url', 'map_location_description')
+            'fields': ('map_embed_url', 'map_location_description','latitude','longitude',)
         }),
     )
 

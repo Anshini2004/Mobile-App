@@ -219,6 +219,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
             "id", "name", "activity_type", "description",
             "base_price", "location", "duration",
             "max_participants",
+            "latitude", "longitude",
             "activity_rules", "safety_equipment", "cancellation_policy",
             "map_embed_url", "map_location_description",
             "avg_rating", "review_count",
