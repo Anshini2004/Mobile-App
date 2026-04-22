@@ -5,6 +5,7 @@ from api.booking_api import get_bookings, cancel_booking
 from utils.constants import *
 from views.components import chip, stat_tile, nav_btn
 
+
 def bookings_page(page: ft.Page, user_id: int = 1):
 
     # ── Loading / error states ────────────────────────────────────────────────
@@ -30,10 +31,17 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             spacing=8,
             controls=[
                 ft.Icon(ft.Icons.WIFI_OFF, size=48, color=BORDER),
-                ft.Text("Could not load bookings", size=14,
-                        color=TEXT_MUTED, weight=ft.FontWeight.W_500),
-                ft.Text("Check your connection and try again.",
-                        size=11, color=TEXT_MUTED),
+                ft.Text(
+                    "Could not load bookings",
+                    size=14,
+                    color=TEXT_MUTED,
+                    weight=ft.FontWeight.W_500,
+                ),
+                ft.Text(
+                    "Check your connection and try again.",
+                    size=11,
+                    color=TEXT_MUTED,
+                ),
             ],
         ),
     )
@@ -41,21 +49,23 @@ def bookings_page(page: ft.Page, user_id: int = 1):
     BOOKINGS: list[dict] = []
     active_filter = {"value": "ALL"}
 
-    # ── Dialog ────────────────────────────────────────────────────────────────
+    # ── Dialog / Popup ────────────────────────────────────────────────────────
+    # Flet requires title/content/actions to exist when the dialog is created.
     dialog = ft.AlertDialog(
-    title=ft.Text("Confirm Cancellation"),
-    modal=True,
-    barrier_color="transparent",  # 👈 removes grey overlay
-)
-    page.overlay.append(dialog)   # correct way to register dialogs in Flet
+        modal=True,
+        bgcolor=ft.Colors.TRANSPARENT,
+        barrier_color=ft.Colors.with_opacity(0.45, ft.Colors.BLACK),
+        content=ft.Container(width=1, height=1),  # placeholder to avoid error
+    )
+    page.overlay.append(dialog)
 
-    def close_dialog():
+    def close_dialog(e=None):
         dialog.open = False
         page.update()
 
     filter_pills_row = ft.Ref[ft.Row]()
-    cards_column     = ft.Ref[ft.Column]()
-    stats_row        = ft.Ref[ft.Row]()
+    cards_column = ft.Ref[ft.Column]()
+    stats_row = ft.Ref[ft.Row]()
 
     # ── Booking card ──────────────────────────────────────────────────────────
     def booking_card(b: dict):
@@ -93,13 +103,11 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             )
         ]
 
-        # ─────────────────────────────────────────────
         if b["status"] == "CONFIRMED":
 
             async def on_cancel_click(e, booking=b):
 
                 async def on_confirm(e):
-
                     # optimistic UI update
                     booking["status"] = "CANCELLED"
                     rebuild_cards()
@@ -119,62 +127,68 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                         rebuild_pills()
                         page.update()
 
-                def close_dialog(e=None):
-                    dialog.open = False
-                    page.update()
-
-                # ── MODERN POPUP UI ──
+                # ── NICE POPUP UI ──
                 dialog.content = ft.Container(
-                    width=320,
-                    padding=pad_all(16),
+                    width=280,  # smaller width
+                    padding=12,  # reduced padding
+                    border_radius=14,
                     bgcolor=ft.Colors.WHITE,
-                    border_radius=12,
                     shadow=ft.BoxShadow(
-                        blur_radius=20,
-                        color="#30000000",
+                        blur_radius=18,
+                        color="#22000000",
                         offset=ft.Offset(0, 6),
                     ),
                     content=ft.Column(
-                        tight=True,
-                        spacing=12,
+                        spacing=8,  # tighter spacing
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        tight=True,
                         controls=[
-
-                            # Title
-
-                            # Message
+                            ft.Container(
+                                width=40,
+                                height=40,
+                                border_radius=20,
+                                bgcolor="#FCE8E8",
+                                alignment=CENTER,
+                                content=ft.Icon(
+                                    ft.Icons.WARNING_AMBER_ROUNDED,
+                                    size=22,  # smaller icon
+                                    color="#8B1A1A",
+                                ),
+                            ),
+                            ft.Text(
+                                "Cancel booking?",
+                                size=15,  # smaller title
+                                weight=ft.FontWeight.BOLD,
+                                text_align=ft.TextAlign.CENTER,
+                                color=ft.Colors.BLACK,
+                            ),
                             ft.Text(
                                 f"Cancel '{b['activity']}'?",
-                                size=13,
-                                color=TEXT_MUTED,
+                                size=11,  # smaller text
                                 text_align=ft.TextAlign.CENTER,
+                                color=TEXT_MUTED,
+                                max_lines=2,
                             ),
-
-                            # Buttons
                             ft.Row(
                                 alignment=ft.MainAxisAlignment.CENTER,
-                                spacing=10,
+                                spacing=6,  # tighter buttons
                                 controls=[
-
-                                    # No button
-                                    ft.Button(
-                                        "No",
-                                        on_click=lambda e: close_dialog(),
-                                        style=ft.ButtonStyle(
-                                            bgcolor="#F2F2F2",
-                                            color=TEXT_DARK,
-                                            shape=ft.RoundedRectangleBorder(radius=8),
-                                        ),
-                                    ),
-
-                                    # Yes button
-                                    ft.Button(
+                                    ft.ElevatedButton(
                                         "Yes",
                                         on_click=on_confirm,
                                         style=ft.ButtonStyle(
                                             bgcolor="#8B1A1A",
                                             color=ft.Colors.WHITE,
+                                            padding=ft.Padding(10, 6, 10, 6),
                                             shape=ft.RoundedRectangleBorder(radius=8),
+                                        ),
+                                    ),
+                                    ft.TextButton(
+                                        "No",
+                                        on_click=close_dialog,
+                                        style=ft.ButtonStyle(
+                                            padding=ft.Padding(10, 6, 10, 6),
+                                            color=TEXT_DARK,
                                         ),
                                     ),
                                 ],
@@ -187,12 +201,13 @@ def bookings_page(page: ft.Page, user_id: int = 1):
 
             row_controls.append(
                 ft.Container(
-                    content=ft.Button(
+                    content=ft.ElevatedButton(
                         "Cancel",
                         on_click=on_cancel_click,
                         style=ft.ButtonStyle(
                             bgcolor="#8B1A1A",
                             color=ft.Colors.WHITE,
+                            shape=ft.RoundedRectangleBorder(radius=10),
                         ),
                     ),
                     padding=pad_sym(h=8, v=2),
@@ -200,7 +215,6 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                 )
             )
 
-        # ─────────────────────────────────────────────
         return ft.Container(
             bgcolor=CARD_BG,
             border_radius=16,
@@ -242,6 +256,7 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                 ],
             ),
         )
+
     # ── Pills ─────────────────────────────────────────────────────────────────
     def make_pill(label: str, value: str):
         is_active = value == active_filter["value"]
@@ -256,7 +271,9 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             on_tap=on_tap,
             content=ft.Container(
                 content=ft.Text(
-                    label, size=12, weight=ft.FontWeight.W_600,
+                    label,
+                    size=12,
+                    weight=ft.FontWeight.W_600,
                     color=ft.Colors.WHITE if is_active else TEXT_MUTED,
                 ),
                 bgcolor=TEAL if is_active else CARD_BG,
@@ -284,26 +301,34 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                 for b in filtered
             ]
         else:
-            items = [ft.Container(
-                padding=pad_only(top=60), alignment=CENTER,
-                content=ft.Column(
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8,
-                    controls=[
-                        ft.Icon(ft.Icons.INBOX_OUTLINED, size=52, color=BORDER),
-                        ft.Text("No bookings found", size=14,
-                                color=TEXT_MUTED, weight=ft.FontWeight.W_500),
-                    ],
-                ),
-            )]
+            items = [
+                ft.Container(
+                    padding=pad_only(top=60),
+                    alignment=CENTER,
+                    content=ft.Column(
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        spacing=8,
+                        controls=[
+                            ft.Icon(ft.Icons.INBOX_OUTLINED, size=52, color=BORDER),
+                            ft.Text(
+                                "No bookings found",
+                                size=14,
+                                color=TEXT_MUTED,
+                                weight=ft.FontWeight.W_500,
+                            ),
+                        ],
+                    ),
+                )
+            ]
         cards_column.current.controls = items
 
     def rebuild_stats():
-        confirmed   = sum(1 for b in BOOKINGS if b["status"] == "CONFIRMED")
-        completed   = sum(1 for b in BOOKINGS if b["status"] == "COMPLETED")
+        confirmed = sum(1 for b in BOOKINGS if b["status"] == "CONFIRMED")
+        completed = sum(1 for b in BOOKINGS if b["status"] == "COMPLETED")
         total_spent = sum(b["price"] for b in BOOKINGS if b["status"] != "CANCELLED")
         stats_row.current.controls = [
-            stat_tile(str(confirmed),          "Upcoming",    TEAL),
-            stat_tile(str(completed),          "Completed",   "#1A5FBB"),
+            stat_tile(str(confirmed), "Upcoming", TEAL),
+            stat_tile(str(completed), "Completed", "#1A5FBB"),
             stat_tile(f"Rs {total_spent:,.0f}", "Total Spent", TEXT_DARK),
         ]
 
@@ -317,16 +342,26 @@ def bookings_page(page: ft.Page, user_id: int = 1):
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Column(spacing=2, tight=True, controls=[
-                    ft.Text("My Bookings", size=22,
-                            weight=ft.FontWeight.W_800, color=TEXT_DARK),
-                    header_subtitle,
-                ]),
+                ft.Column(
+                    spacing=2,
+                    tight=True,
+                    controls=[
+                        ft.Text(
+                            "My Bookings",
+                            size=22,
+                            weight=ft.FontWeight.W_800,
+                            color=TEXT_DARK,
+                        ),
+                        header_subtitle,
+                    ],
+                ),
                 ft.Container(
-                    content=ft.Icon(ft.Icons.NOTIFICATIONS_NONE,
-                                    size=20, color=TEXT_DARK),
-                    width=38, height=38, bgcolor=TEAL_LIGHT,
-                    border_radius=19, alignment=CENTER,
+                    content=ft.Icon(ft.Icons.NOTIFICATIONS_NONE, size=20, color=TEXT_DARK),
+                    width=38,
+                    height=38,
+                    bgcolor=TEAL_LIGHT,
+                    border_radius=19,
+                    alignment=CENTER,
                 ),
             ],
         ),
@@ -334,15 +369,18 @@ def bookings_page(page: ft.Page, user_id: int = 1):
 
     # ── Scrollable body ───────────────────────────────────────────────────────
     middle_content = ft.Column(
-        expand=True, scroll="auto", spacing=0,
+        expand=True,
+        scroll="auto",
+        spacing=0,
         controls=[
             ft.Container(
                 padding=pad_only(left=16, right=16, top=14, bottom=6),
                 content=ft.Row(
-                    ref=stats_row, spacing=10,
+                    ref=stats_row,
+                    spacing=10,
                     controls=[
-                        stat_tile("–", "Upcoming",    TEAL),
-                        stat_tile("–", "Completed",   "#1A5FBB"),
+                        stat_tile("–", "Upcoming", TEAL),
+                        stat_tile("–", "Completed", "#1A5FBB"),
                         stat_tile("Rs –", "Total Spent", TEXT_DARK),
                     ],
                 ),
@@ -359,16 +397,17 @@ def bookings_page(page: ft.Page, user_id: int = 1):
     )
 
     layout = ft.Column(
-        expand=True, spacing=0,
+        expand=True,
+        spacing=0,
         controls=[header, middle_content],
     )
 
     rebuild_pills()
 
-    # ── async data loader — this is what Flet requires ────────────────────────
+    # ── async data loader — this is what Flet requires ───────────────────────
     async def load_data():
         nonlocal BOOKINGS
-        try: 
+        try:
             BOOKINGS = await get_bookings(user_id)
             loading_indicator.visible = False
             error_banner.visible = False
@@ -385,6 +424,6 @@ def bookings_page(page: ft.Page, user_id: int = 1):
         finally:
             page.update()
 
-    page.run_task(load_data)   # async-safe, no lambda needed
+    page.run_task(load_data)
 
     return layout
