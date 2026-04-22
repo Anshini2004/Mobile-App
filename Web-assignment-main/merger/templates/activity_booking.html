@@ -1,8 +1,10 @@
-{% extends "base_homepage.html" %} 
-{% load static %} 
+{% extends "base_homepage.html" %}
+{% load static %}
+
 {% block title %}
-{{activity.name }}
-{% endblock %} 
+{{ activity.name }}
+{% endblock %}
+
 {% block extrahead %}
 <link
   href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
@@ -11,8 +13,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <link rel="stylesheet" href="{% static 'css/activity_booking.css' %}" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
-{% endblock %} 
+{% endblock %}
 
 {% block content %}
 <!-- ======================== MAIN CONTENT ======================== -->
@@ -160,7 +161,7 @@
           <div class="rules-category">
             <h4>Activity rules</h4>
             <div class="rules-list">
-              <p>{{ activity.activity_rules|linebreaks}}</p>
+              <p>{{ activity.activity_rules|linebreaks }}</p>
             </div>
           </div>
           <div class="rules-category">
@@ -239,156 +240,158 @@
     </form>
   </div>
 </div>
-{% endblock %} 
+{% endblock %}
 
 {% block js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="{% static 'js/activity_booking.js' %}"></script>
 
 {{ disabled_dates|json_script:"disabled-dates" }}
 {{ availability|json_script:"availability-data" }}
 
 <script>
-  const dateInput = document.getElementById("activity-date");
-  const guestsInput = document.getElementById("guests");
-  const reserveBtn = document.getElementById("reserve-btn");
-  const bookingForm = document.getElementById("booking-form");
+  $(function () {
+    var $dateInput = $("#activity-date");
+    var $guestsInput = $("#guests");
+    var $reserveBtn = $("#reserve-btn");
+    var $bookingForm = $("#booking-form");
+    var $pricePerGuest = $("#price-per-guest");
+    var $totalDisplay = $("#total-display");
+    var $bookingDate = $("#booking-date");
+    var $numPeople = $("#num-people");
+    var $totalPrice = $("#total-price");
+    var $reviewsList = $("#reviewsList");
+    var $showMoreBtn = $("#showMoreReviews");
+    var $showLessBtn = $("#showLessReviews");
+    var $container = $(".reviews-list");
 
-  const basePrice = parseFloat("{{ activity.base_price }}");
-  const maxParticipants = {{ activity.max_participants }};
+    var basePrice = parseFloat("{{ activity.base_price }}");
+    var maxParticipants = parseInt("{{ activity.max_participants }}", 10);
 
-  const disabledDates = JSON.parse(document.getElementById("disabled-dates").textContent);
-  const availability = JSON.parse(document.getElementById("availability-data").textContent);
+    var disabledDates = JSON.parse($("#disabled-dates").text());
+    var availability = JSON.parse($("#availability-data").text());
 
-  function sanitizeGuests() {
-      const maxGuests = parseInt(guestsInput.max) || maxParticipants;
-      let guests = parseInt(guestsInput.value) || 1;
+    function sanitizeGuests() {
+      var maxGuests = parseInt($guestsInput.attr("max"), 10) || maxParticipants;
+      var guests = parseInt($guestsInput.val(), 10) || 1;
 
       if (guests > maxGuests) {
-          guests = maxGuests;
-          guestsInput.value = maxGuests;
+        guests = maxGuests;
+        $guestsInput.val(maxGuests);
       }
+
       if (guests < 1) {
-          guests = 1;
-          guestsInput.value = 1;
+        guests = 1;
+        $guestsInput.val(1);
       }
+
       return guests;
-  }
+    }
 
-  function updatePriceBreakdown() {
-      const date = dateInput.value;
-      const guests = sanitizeGuests();
+    function updatePriceBreakdown() {
+      var date = $dateInput.val();
+      var guests = sanitizeGuests();
+      var total = basePrice * guests;
 
-      const total = basePrice * guests;
-      const totalField = document.getElementById("total-price");
+      $reserveBtn.prop("disabled", !date);
 
-      if (date) {
-          reserveBtn.disabled = false;
-      } else {
-          reserveBtn.disabled = true;
-      }
+      $pricePerGuest.text("Rs" + basePrice + " x " + guests + " guest" + (guests > 1 ? "s" : ""));
+      $totalDisplay.text("Rs" + total);
 
-      // Update UI numbers
-      document.getElementById("price-per-guest").textContent =
-          `Rs${basePrice} x ${guests} guest${guests > 1 ? "s" : ""}`;
+      $bookingDate.val(date);
+      $numPeople.val(guests);
+      $totalPrice.val(total);
+    }
 
-      document.getElementById("total-display").textContent = `Rs${total}`;
-
-      // Hidden form fields
-      document.getElementById("booking-date").value = date;
-      document.getElementById("num-people").value = guests;
-      totalField.value = total;
-  }
-
-  function handleAvailability(dateStr) {
-      let maxSpots = availability[dateStr] ?? maxParticipants;
-      guestsInput.max = maxSpots;
+    function handleAvailability(dateStr) {
+      var maxSpots = availability[dateStr] || maxParticipants;
+      $guestsInput.attr("max", maxSpots);
 
       sanitizeGuests();
       updatePriceBreakdown();
-  }
+    }
 
-
-  flatpickr("#activity-date", {
+    flatpickr("#activity-date", {
       minDate: "today",
       disable: disabledDates,
       dateFormat: "Y-m-d",
       defaultDate: null,
-      onChange: function(selectedDates, dateStr) {
-          handleAvailability(dateStr);
+      onChange: function (selectedDates, dateStr) {
+        handleAvailability(dateStr);
       }
-  });
+    });
 
-  guestsInput.addEventListener("input", function () {
+    $guestsInput.on("input", function () {
       sanitizeGuests();
       updatePriceBreakdown();
 
-      const date = dateInput.value;
+      var date = $dateInput.val();
       if (date) {
-          handleAvailability(date);
+        handleAvailability(date);
       }
-  });
+    });
 
-  bookingForm.addEventListener("submit", function (e) {
+    $bookingForm.on("submit", function (e) {
       e.preventDefault();
 
-      const date = dateInput.value;
-      const guests = sanitizeGuests();
+      var date = $dateInput.val();
+      var guests = sanitizeGuests();
 
       if (!date || !guests) {
-          alert("Please select date and number of guests");
-          return;
+        alert("Please select date and number of guests");
+        return;
       }
 
-      this.action = `{% url 'payment' activity.name %}`;
+      this.action = "{% url 'payment' activity.name %}";
       this.submit();
-  });
+    });
 
-  updatePriceBreakdown();
-  
-  // Reviews show more / scroll handling
-  (function(){
-    const reviewsList = document.getElementById('reviewsList');
-    if (!reviewsList) return;
+    updatePriceBreakdown();
 
-    const hiddenItems = document.querySelectorAll('.hidden-review');
-    const showMoreBtn = document.getElementById('showMoreReviews');
-    const showLessBtn = document.getElementById('showLessReviews');
+    // Reviews show more / less handling
+    if ($reviewsList.length) {
+      var $hiddenItems = $(".hidden-review");
 
-    // prevent body scroll when hovering over the reviews container
-    const container = document.querySelector('.reviews-list');
-    if (container) {
-      container.style.maxHeight = '320px';
-      container.style.overflowY = 'auto';
-      container.addEventListener('wheel', function(e){
-        const delta = e.deltaY;
-        const atTop = container.scrollTop === 0 && delta < 0;
-        const atBottom = container.scrollHeight - container.scrollTop === container.clientHeight && delta > 0;
+      $container.css({
+        "max-height": "320px",
+        "overflow-y": "auto"
+      });
+
+      $container.on("wheel", function (e) {
+        var delta = e.originalEvent.deltaY;
+        var atTop = $(this).scrollTop() === 0 && delta < 0;
+        var atBottom = ($(this).scrollTop() + $(this).innerHeight()) >= $(this)[0].scrollHeight && delta > 0;
+
         if (atTop || atBottom) {
-          // allow page scroll
           return;
         }
-        e.stopPropagation();
-      }, { passive: false });
-    }
 
-    if (showMoreBtn) {
-      showMoreBtn.addEventListener('click', function(){
-        hiddenItems.forEach(i => i.classList.remove('hidden-review'));
-        container.style.maxHeight = '600px';
-        showMoreBtn.classList.add('hidden');
-        if (showLessBtn) showLessBtn.classList.remove('hidden');
+        e.stopPropagation();
       });
+
+      if ($showMoreBtn.length) {
+        $showMoreBtn.on("click", function () {
+          $hiddenItems.removeClass("hidden-review");
+          $container.css("max-height", "600px");
+          $showMoreBtn.addClass("hidden");
+          if ($showLessBtn.length) {
+            $showLessBtn.removeClass("hidden");
+          }
+        });
+      }
+
+      if ($showLessBtn.length) {
+        $showLessBtn.on("click", function () {
+          $hiddenItems.addClass("hidden-review");
+          $container.css("max-height", "320px");
+          $showLessBtn.addClass("hidden");
+          if ($showMoreBtn.length) {
+            $showMoreBtn.removeClass("hidden");
+          }
+          $container.scrollTop(0);
+        });
+      }
     }
-    if (showLessBtn) {
-      showLessBtn.addEventListener('click', function(){
-        hiddenItems.forEach(i => i.classList.add('hidden-review'));
-        container.style.maxHeight = '320px';
-        showLessBtn.classList.add('hidden');
-        if (showMoreBtn) showMoreBtn.classList.remove('hidden');
-        container.scrollTop = 0;
-      });
-    }
-  })();
+  });
 </script>
 {% endblock %}
