@@ -191,15 +191,15 @@ tbody tr {
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   animation: fadeInScale 0.3s ease;
-  width: 1000px;          /* ✅ increased from 900px */
-  max-width: 98%;         /* ✅ increased from 95% */
+  width: 1000px;          
+  max-width: 98%;         
   text-align: left;
   position: relative;
   margin: auto;
 }
 
 .modal-content.small {
-  width: 520px;           /* ✅ increased from 450px */
+  width: 520px;           
   padding: 30px 40px;
   text-align: center;
 }

@@ -217,7 +217,7 @@ def payment_view(page: ft.Page):
                     "activity_id": activity_id,
                     "booking_date": book_date,
                     "num_people": num_people,
-                    "amount": total_price,          # ✅ FIX: added missing field
+                    "amount": total_price,          
                     "card_number": card_number.value,
                     "card_name": card_name.value.strip(),
                     "expiry_date": expiry.value.strip(),

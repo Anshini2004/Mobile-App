@@ -1,11 +1,8 @@
 import asyncio
 import re
 import flet as ft
-import httpx
 
 from utils.api_client import api_update_me, api_logout
-
-#API_BASE_URL = "http://127.0.0.1:8000/grandblue/api"
 
 
 def profile_view(page: ft.Page):
@@ -111,11 +108,10 @@ def profile_view(page: ft.Page):
 
         pw = next(f for f in form_fields if f["label"] == "PASSWORD")["tf"].value
         if pw:
-            payload["password"] = pw
-
+            payload["password"] = pw    
+        payload["user_id"] = page.session.store.get("user_id")
         print("CALLING api_update_me...")
 
-        # ✅ run blocking request in separate thread
         result = await asyncio.to_thread(api_update_me, page, payload)
 
         print("RESULT:", result)

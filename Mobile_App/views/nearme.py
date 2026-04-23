@@ -235,7 +235,6 @@ def nearme_view(page: ft.Page):
         ],
     )
 
-    # ✅ run async in background (IMPORTANT)
     page.run_task(fetch_activities)
 
     return body

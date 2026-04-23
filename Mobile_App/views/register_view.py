@@ -1,7 +1,7 @@
 import asyncio
 import flet as ft
 
-from utils.api_client import api_register, save_auth_session
+from utils.api_client import api_register
 
 
 def register_view(page: ft.Page):

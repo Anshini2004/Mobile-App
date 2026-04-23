@@ -3,9 +3,7 @@ import flet as ft
 
 def splash_view(page: ft.Page):
 
-    # ---------------------------
     # NAVIGATION FUNCTIONS
-    # ---------------------------
     def go_home(e):
         page.run_task(page.push_route, "/home")
 
@@ -15,9 +13,7 @@ def splash_view(page: ft.Page):
     def go_register(e):
         page.run_task(page.push_route, "/register")
 
-    # ---------------------------
     # BUTTON
-    # ---------------------------
     button = ft.Container(
         content=ft.Text(
             "Discover",
@@ -33,9 +29,7 @@ def splash_view(page: ft.Page):
         on_click=go_home,
     )
 
-    # ---------------------------
     # VIEW
-    # ---------------------------
     return ft.View(
         route="/",
         expand=True,
@@ -47,7 +41,6 @@ def splash_view(page: ft.Page):
                 fit=ft.StackFit.EXPAND,
                 controls=[
 
-                    # BACKGROUND IMAGE
                     ft.Image(
                         src="splash.jpg",
                         fit="cover",
@@ -56,13 +49,11 @@ def splash_view(page: ft.Page):
                         height=float("inf"),
                     ),
 
-                    # DARK OVERLAY
                     ft.Container(
                         expand=True,
                         bgcolor="#55000000",
                     ),
 
-                    # CONTENT
                     ft.Container(
                         expand=True,
                         padding=ft.padding.only(left=30, right=30, bottom=40),
@@ -102,7 +93,6 @@ def splash_view(page: ft.Page):
 
                                 ft.Container(height=10),
 
-                                # LOGIN / REGISTER
                                 ft.Container(
                                     width=200,
                                     alignment=ft.alignment.Alignment(0, 0),

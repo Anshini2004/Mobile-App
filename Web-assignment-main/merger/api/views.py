@@ -1,7 +1,3 @@
-# =========================================================
-# IMPORTS
-# =========================================================
-
 # Django
 import json
 from django.http import JsonResponse
@@ -16,7 +12,7 @@ from django.db.models import Avg, Q
 # DRF
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
@@ -40,14 +36,9 @@ from .serializers import (
     RegisterSerializer,
     ActivityCatalogueSerializer,
 )
-
 User = get_user_model()
 
-
-# =========================================================
 # AUTH APIs
-# =========================================================
-
 @csrf_exempt
 def signup_api(request):
     if request.method == "POST":
@@ -88,21 +79,13 @@ def login_api(request):
 
         return JsonResponse({"error": "Invalid credentials"}, status=400)
 
-
-# =========================================================
-# ACTIVITIES (FUNCTION-BASED)
-# =========================================================
-
+# ACTIVITIES
 def activities_api(request):
     activities = Activity.objects.all()
     serializer = ActivitySerializer(activities, many=True)
     return JsonResponse(serializer.data, safe=False)
 
-
-# =========================================================
-# BOOKINGS (FUNCTION-BASED)
-# =========================================================
-
+# BOOKINGS
 def activity_has_active_booking(activity_id, booking_date):
     return (
         Booking.objects
@@ -124,7 +107,7 @@ def create_booking_api(request):
 
         serializer = BookingSerializer(data=data)
         if serializer.is_valid():
-            user_id = data.get("customer_id")  # fallback if needed
+            user_id = data.get("customer_id")  # fallback
 
             if request.user.is_authenticated:
                 booking = serializer.save(customer=request.user)
@@ -161,11 +144,7 @@ def cancel_booking_api(request, booking_id):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
 
-
-# =========================================================
-# PAYMENT (FUNCTION-BASED)
-# =========================================================
-
+# PAYMENT
 @csrf_exempt
 def payment_api(request):
     if request.method == "POST":
@@ -190,11 +169,7 @@ def payment_api(request):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
 
-
-# =========================================================
 # REVIEWS
-# =========================================================
-
 @csrf_exempt
 def review_api(request):
     if request.method == "POST":
@@ -210,11 +185,7 @@ def review_api(request):
 
         return JsonResponse(serializer.errors, status=400)
 
-
-# =========================================================
 # PROFILE
-# =========================================================
-
 @csrf_exempt
 def profile_update_api(request, user_id):
     if request.method == "POST":
@@ -229,23 +200,13 @@ def profile_update_api(request, user_id):
 
         return JsonResponse(serializer.errors, status=400)
 
-
-# =========================================================
 # NOTIFICATIONS
-# =========================================================
-
 def notifications_api(request, user_id):
     notes = Notification.objects.filter(user_id=user_id)
     serializer = NotificationSerializer(notes, many=True)
     return JsonResponse(serializer.data, safe=False)
 
-
-# =========================================================
-# CLASS-BASED VIEWS (NEW API)
-# =========================================================
-
 # ── Payment ViewSet ───────────────────────────────────────
-
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related("booking")
     serializer_class = PaymentSerializer
@@ -370,7 +331,7 @@ class NearMeActivityViewSet(viewsets.ReadOnlyModelViewSet):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]  # or custom, this is what prevents for example a POST to the API.
+    permission_classes = [permissions.IsAuthenticated]
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
@@ -449,29 +410,47 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(
         detail=False,
         methods=["get", "patch"],
-        permission_classes = [permissions.AllowAny],
+        permission_classes=[permissions.AllowAny],
         url_path="me",
     )
     def me(self, request):
-        print("WE HAVE BREACHED INTO THIS FUNCTION")
+
         if request.method == "GET":
-            serializer = UserSerializer(request.user)
+            user_id = request.query_params.get("user_id")
+
+            if not user_id:
+                return Response({"error": "user_id required"}, status=400)
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=404)
+
+            serializer = UserSerializer(user)
             return Response(serializer.data)
 
         elif request.method == "PATCH":
-            print("IT got ACCEPTED AS BEING A PATCH")
+            user_id = request.data.get("user_id")
+
+            if not user_id:
+                return Response({"error": "user_id required"}, status=400)
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=404)
+
             serializer = UserSerializer(
-                request.user,
+                user,
                 data=request.data,
                 partial=True
             )
 
             if serializer.is_valid():
-                print("THE SERIALIZER IS VALID")
                 serializer.save()
                 return Response(serializer.data)
-            print("The SERIALIZER IS NOTTTTTTTTTTTTTTTTT VALID")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(serializer.errors, status=400)
 
     @action(
         detail=False,
@@ -535,11 +514,6 @@ class ActivityViewSet(ViewSet):
         ]
 
         return Response(result)
-
-
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

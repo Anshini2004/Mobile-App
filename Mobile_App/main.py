@@ -19,9 +19,6 @@ def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # ---------------------------
-    # 📱 PHONE-LIKE WINDOW
-    # ---------------------------
     page.bgcolor = "#000000"
 
     page.window.width = 550
@@ -30,20 +27,15 @@ def main(page: ft.Page):
     page.window.maximizable = False
     page.window.bgcolor = "#000000"
 
-    # optional (nice effect)
     page.window.always_on_top = True
 
     page.update()
 
-    # ---------------------------
     # AUTH CHECK
-    # ---------------------------
     def is_authenticated():
         return page.session.store.get("access_token") is not None
 
-    # ---------------------------
     # ROUTER
-    # ---------------------------
     def route_change(e):
         print("ROUTE:", e.route)
         page.views.clear()
@@ -96,7 +88,7 @@ def main(page: ft.Page):
                 page.go("/login")
                 return
 
-            user_id = page.session.store.get("user_id")   # 🔥 GET USER ID
+            user_id = page.session.store.get("user_id")  
 
             view = ft.View(
                 route="/bookings",
@@ -104,7 +96,7 @@ def main(page: ft.Page):
                     ft.Stack(
                         expand=True,
                         controls=[
-                            bookings_page(page, user_id),   # 🔥 PASS IT HERE
+                            bookings_page(page, user_id),  
                             bottom_nav(page, "/bookings"),
                         ],
                     )
@@ -121,7 +113,7 @@ def main(page: ft.Page):
                 controls=[
                     ft.Stack(
                         expand=True,
-                        controls=[ # ✅ SHOW PROFILE
+                        controls=[ 
                             profile_view.profile_view(page),
                             bottom_nav(page, "/profile"),
                         ],
@@ -153,9 +145,7 @@ def main(page: ft.Page):
         page.views.append(view)
         page.update()
 
-    # ---------------------------
     # BACK BUTTON
-    # ---------------------------
     def view_pop(e):
         page.views.pop()
         page.update()
@@ -163,9 +153,6 @@ def main(page: ft.Page):
     page.on_route_change = route_change
     page.on_view_pop = view_pop
 
-    # ---------------------------
-    # 🚀 START APP (FIXED)
-    # ---------------------------
     page.views.append(splash_view(page))
     page.update()
 
