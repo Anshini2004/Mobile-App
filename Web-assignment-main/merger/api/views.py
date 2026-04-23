@@ -29,6 +29,7 @@ from ..models import User, BookingReview, Notification
 # Serializers
 from .serializers import (
     UserSerializer,
+    NearMeActivitySerializer,
     ActivitySerializer,
     ActivityDetailSerializer,
     BookingSerializer,
@@ -345,9 +346,10 @@ class BookingCreateView(generics.CreateAPIView):
         )
 
 
-class ActivityViewSet(viewsets.ReadOnlyModelViewSet):
+class NearMeActivityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Activity.objects.all()
-    serializer_class = ActivitySerializer
+    serializer_class = NearMeActivitySerializer
+    permission_classes = [permissions.AllowAny]
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -430,12 +432,30 @@ class AuthViewSet(viewsets.GenericViewSet):
 
     @action(
         detail=False,
-        methods=["get"],
+        methods=["get", "patch"],
         permission_classes=[permissions.IsAuthenticated],
         url_path="me",
     )
     def me(self, request):
-        return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
+        print("WE HAVE BREACHED INTO THIS FUNCTION")
+        if request.method == "GET":
+            serializer = UserSerializer(request.user)
+            return Response(serializer.data)
+
+        elif request.method == "PATCH":
+            print("IT got ACCEPTED AS BEING A PATCH")
+            serializer = UserSerializer(
+                request.user,
+                data=request.data,
+                partial=True
+            )
+
+            if serializer.is_valid():
+                print("THE SERIALIZER IS VALID")
+                serializer.save()
+                return Response(serializer.data)
+            print("The SERIALIZER IS NOTTTTTTTTTTTTTTTTT VALID")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=False,
