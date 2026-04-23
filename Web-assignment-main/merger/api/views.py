@@ -449,7 +449,7 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(
         detail=False,
         methods=["get", "patch"],
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes = [permissions.AllowAny],
         url_path="me",
     )
     def me(self, request):
@@ -476,7 +476,7 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(
         detail=False,
         methods=["post"],
-        permission_classes=[permissions.IsAuthenticated],
+        permission_classes = [permissions.AllowAny],
         url_path="logout",
     )
     def logout(self, request):

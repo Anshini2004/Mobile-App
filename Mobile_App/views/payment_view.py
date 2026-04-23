@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 import asyncio
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000/grandblue"
 
 
 def payment_view(page: ft.Page):

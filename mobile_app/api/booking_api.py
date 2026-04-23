@@ -3,7 +3,7 @@
 import httpx
 import flet as ft
 
-BASE_URL = "http://127.0.0.1:8000/api"
+BASE_URL = "http://127.0.0.1:8000/booking/api"
 
 ICON_MAP = {
     "catamaran": ft.Icons.SAILING,

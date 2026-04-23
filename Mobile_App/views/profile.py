@@ -121,7 +121,7 @@ def profile_view(page: ft.Page):
         print("RESULT:", result)
 
         if result.get("status_code") == 401:
-            page.go("/")
+            page.go("/home")
             return
 
         if result.get("ok"):
@@ -193,7 +193,8 @@ def profile_view(page: ft.Page):
         edit_btn,
         save_btn,
         logout_btn,
-        ft.Container(height=60)
+        ft.Container(height=80),
+        ft.Container(height=100),
     ], scroll=ft.ScrollMode.AUTO)
 
     return body
