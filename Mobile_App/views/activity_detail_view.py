@@ -606,7 +606,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         if show_desc_toggle and not description_expanded["value"]:
             short_description = description[:240].rsplit(" ", 1)[0] + "…"
 
-        booking_offset["value"] = 1020.0
+        booking_offset["value"] = 970.0
         if highlights:
             booking_offset["value"] += 170.0
         if show_desc_toggle and description_expanded["value"]:
