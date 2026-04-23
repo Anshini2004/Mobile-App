@@ -22,6 +22,11 @@ def activity_detail_view(page: ft.Page, activity_id: int):
     ERROR = "#DC2626"
     HERO_FALLBACK = "#092846"
 
+    # Unavailable-date colours
+    UNAVAILABLE_BG = "#FDECEC"
+    UNAVAILABLE_BORDER = "#F4B7B7"
+    UNAVAILABLE_TEXT = "#C96C6C"
+
     activity_data = {"data": None}
     selected_image = {"index": 0}
     description_expanded = {"value": False}
@@ -41,17 +46,13 @@ def activity_detail_view(page: ft.Page, activity_id: int):
     current = {"year": today.year, "month": today.month}
     sel = {"date": None}
     tickets = {"count": 1}
-    sel_time = {"value": "10:30 AM"}
-    TIMES = ["9:00 AM", "10:30 AM", "12:00 PM", "2:00 PM", "4:00 PM"]
 
     month_label = ft.Text("", size=15, weight=ft.FontWeight.BOLD, color=TEXT)
     calendar_grid = ft.Column(spacing=8)
-    time_choice_row = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=8)
     ticket_text = ft.Text("1", size=16, weight=ft.FontWeight.BOLD, color=TEXT)
     book_btn_text = ft.Text("Book Now", color="white", size=16, weight=ft.FontWeight.W_600)
 
     summary_date_value = ft.Text("Select a date", size=13, color=TEXT, weight=ft.FontWeight.W_600)
-    summary_time_value = ft.Text(sel_time["value"], size=13, color=TEXT, weight=ft.FontWeight.W_600)
     summary_guest_value = ft.Text("1 guest", size=13, color=TEXT, weight=ft.FontWeight.W_600)
     summary_total_value = ft.Text("Rs 0", size=20, color=TEXT, weight=ft.FontWeight.BOLD)
 
@@ -310,7 +311,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         summary_date_value.value = (
             sel["date"].strftime("%d %b %Y") if sel["date"] else "Select a date"
         )
-        summary_time_value.value = sel_time["value"]
         summary_guest_value.value = (
             f"{tickets['count']} guest" if tickets["count"] == 1 else f"{tickets['count']} guests"
         )
@@ -319,6 +319,18 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             summary_total_value.value = f"Rs {total:,.0f}"
         else:
             summary_total_value.value = "Rs 0"
+
+    def get_unavailable_dates():
+        raw_dates = (activity_data["data"] or {}).get("unavailable_dates", []) or []
+        parsed = set()
+
+        for raw in raw_dates:
+            try:
+                parsed.add(date.fromisoformat(str(raw)))
+            except Exception:
+                pass
+
+        return parsed
 
     def update_floating_reserve():
         if activity_data["data"] is None:
@@ -341,6 +353,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
     def build_calendar():
         y, m = current["year"], current["month"]
         month_label.value = datetime(y, m, 1).strftime("%B %Y")
+        unavailable_dates = get_unavailable_dates()
 
         headers = ft.Row(
             controls=[
@@ -371,9 +384,11 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                 is_sel = sel["date"] == d_obj
                 is_today = d_obj == today
                 is_past = d_obj < today
+                is_unavailable = d_obj in unavailable_dates and d_obj >= today
+                is_disabled = is_past or is_unavailable
 
                 def on_tap(e, _d=d_obj):
-                    if _d < today:
+                    if _d < today or _d in unavailable_dates:
                         return
                     sel["date"] = _d
                     build_calendar()
@@ -388,17 +403,25 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                         margin=ft.margin.only(left=2, right=2),
                         alignment=ft.Alignment(0, 0),
                         border_radius=14,
-                        bgcolor=PRIMARY if is_sel else CARD,
+                        bgcolor=PRIMARY if is_sel else (UNAVAILABLE_BG if is_unavailable else CARD),
                         border=ft.Border.all(
                             1.5,
-                            PRIMARY if is_sel else (TEAL if is_today and not is_sel else BORDER),
+                            PRIMARY if is_sel else (
+                                UNAVAILABLE_BORDER if is_unavailable else (
+                                    TEAL if is_today and not is_sel else BORDER
+                                )
+                            ),
                         ),
-                        on_click=on_tap if not is_past else None,
+                        on_click=on_tap if not is_disabled else None,
                         content=ft.Text(
                             str(day),
                             size=13,
                             text_align=ft.TextAlign.CENTER,
-                            color="white" if is_sel else (MUTED if is_past else TEXT),
+                            color="white" if is_sel else (
+                                UNAVAILABLE_TEXT if is_unavailable else (
+                                    MUTED if is_past else TEXT
+                                )
+                            ),
                             weight=ft.FontWeight.BOLD if (is_sel or is_today) else None,
                         ),
                     )
@@ -407,42 +430,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
 
         calendar_grid.controls = [headers, *week_rows]
 
-    def select_time(t: str):
-        sel_time["value"] = t
-        build_time_choices()
-        refresh_booking_summary()
-        page.update()
-
-    def build_time_choices():
-        time_choice_row.controls = [
-            ft.Container(
-                border_radius=22,
-                bgcolor=PRIMARY if t == sel_time["value"] else LIGHT,
-                border=ft.Border.all(1.4, PRIMARY if t == sel_time["value"] else BORDER),
-                padding=ft.padding.symmetric(horizontal=16, vertical=11),
-                on_click=lambda e, _t=t: select_time(_t),
-                content=ft.Row(
-                    spacing=8,
-                    controls=[
-                        ft.Icon(
-                            ft.Icons.TIMELAPSE,
-                            size=15,
-                            color="white" if t == sel_time["value"] else TEAL,
-                        ),
-                        ft.Text(
-                            t,
-                            size=13,
-                            color="white" if t == sel_time["value"] else TEXT,
-                            weight=ft.FontWeight.W_600,
-                        ),
-                    ],
-                ),
-            )
-            for t in TIMES
-        ]
-
     build_calendar()
-    build_time_choices()
     refresh_booking_summary()
 
     def prev_month(e):
@@ -492,6 +480,10 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             show_snack("Please select a date first.")
             return
 
+        if sel["date"] in get_unavailable_dates():
+            show_snack("This activity is already booked for the selected date.")
+            return
+
         d = activity_data["data"]
         if not d:
             show_snack("Activity data is not ready yet. Please try again.")
@@ -504,7 +496,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                 "activity_id": d["id"],
                 "activity_name": d["name"],
                 "date": str(sel["date"]),
-                "time": sel_time["value"],
                 "num_people": tickets["count"],
                 "base_price": d["base_price"],
                 "total_price": total,
@@ -569,8 +560,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         if activity_data["data"] is not None:
             build_page(activity_data["data"])
             page.update()
-            
-
 
     def build_page(d: dict):
         name = d.get("name", "Activity")
@@ -593,6 +582,17 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         images = d.get("images", [])
         highlights = d.get("highlights", [])
         reviews = d.get("reviews", [])
+
+        unavailable_dates = set()
+        for raw in d.get("unavailable_dates", []) or []:
+            try:
+                unavailable_dates.add(date.fromisoformat(str(raw)))
+            except Exception:
+                pass
+
+        if sel["date"] in unavailable_dates:
+            sel["date"] = None
+            refresh_booking_summary()
 
         if images:
             if selected_image["index"] >= len(images):
@@ -622,7 +622,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                         width=9 if i == selected_image["index"] else 7,
                         height=9 if i == selected_image["index"] else 7,
                         border_radius=5,
-                        bgcolor="white" if i == selected_image["index"] else "#80FFFFFF",
+                        bgcolor= TEAL if i == selected_image["index"] else "#80BFC7D5",
                     )
                     for i in range(len(images))
                 ],
@@ -692,7 +692,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                             ),
                         ),
                         ft.Container(
-                            bottom=26,
+                            bottom=40,
                             left=0,
                             right=0,
                             alignment=ft.Alignment(0, 0),
@@ -884,7 +884,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 color=TEXT,
                             ),
                             ft.Text(
-                                "Choose your date, time and group size before checking out.",
+                                "Choose your date and group size before checking out.",
                                 size=13,
                                 color=MUTED,
                             ),
@@ -911,13 +911,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                             controls=[
                                                 ft.Text("Date", size=11, color=MUTED),
                                                 summary_date_value,
-                                            ],
-                                        ),
-                                        ft.Column(
-                                            spacing=4,
-                                            controls=[
-                                                ft.Text("Time", size=11, color=MUTED),
-                                                summary_time_value,
                                             ],
                                         ),
                                         ft.Column(
@@ -974,18 +967,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                             ),
                             month_label,
                             calendar_grid,
-                        ],
-                    ),
-                    ft.Column(
-                        spacing=10,
-                        controls=[
-                            ft.Text(
-                                "Choose a time slot",
-                                size=15,
-                                weight=ft.FontWeight.BOLD,
-                                color=TEXT,
-                            ),
-                            time_choice_row,
                         ],
                     ),
                     ft.Row(
@@ -1085,7 +1066,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 layers=[
                                     ftm.TileLayer(
                                         url_template="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    subdomains=["a", "b", "c", "d"],
+                                        subdomains=["a", "b", "c", "d"],
                                     ),
                                     ftm.MarkerLayer(
                                         markers=[
@@ -1112,7 +1093,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                         ft.Text(location or "Location not set", color=TEXT, size=13),
                                     ],
                                 ),
-                                
                             ],
                         ),
                     ],
@@ -1147,7 +1127,6 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                 ],
                             ),
                         ),
-                       
                     ],
                 )
             )
@@ -1287,6 +1266,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
             resp.raise_for_status()
             d = resp.json()
             activity_data["data"] = d
+            build_calendar()
             refresh_book_btn()
             refresh_booking_summary()
             build_page(d)

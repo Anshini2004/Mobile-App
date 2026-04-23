@@ -212,6 +212,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
     avg_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     reviews = serializers.SerializerMethodField()
+    unavailable_dates = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
@@ -222,7 +223,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
             "latitude", "longitude",
             "activity_rules", "safety_equipment", "cancellation_policy",
             "map_embed_url", "map_location_description",
-            "avg_rating", "review_count",
+            "avg_rating", "review_count", "unavailable_dates",
             "images", "highlights", "reviews"
         ]
 
@@ -245,6 +246,16 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
             reviews, many=True, context=self.context
         ).data
 
+    def get_unavailable_dates(self, obj):
+        booked_dates = (
+            Booking.objects
+            .filter(activity=obj)
+            .exclude(status=Booking.Status.CANCELLED)
+            .values_list("date", flat=True)
+            .distinct()
+            .order_by("date")
+        )
+        return [d.isoformat() for d in booked_dates]
 
 # ---------------------------
 # BOOKING
@@ -268,13 +279,30 @@ class BookingCreateSerializer(serializers.ModelSerializer):
         model = Booking
         fields = ["activity", "date", "group_size"]
 
+    def validate(self, attrs):
+        activity = attrs["activity"]
+        booking_date = attrs["date"]
+
+        already_booked = (
+            Booking.objects
+            .filter(activity=activity, date=booking_date)
+            .exclude(status=Booking.Status.CANCELLED)
+            .exists()
+        )
+
+        if already_booked:
+            raise serializers.ValidationError({
+                "date": "This activity is already booked for the selected date."
+            })
+
+        return attrs
+
     def create(self, validated_data):
         request = self.context["request"]
         return Booking.objects.create(
             customer=request.user,
             **validated_data
         )
-
 
 # ---------------------------
 # PAYMENT

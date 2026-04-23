@@ -277,7 +277,6 @@ def payment_view(page: ft.Page):
             [
                 row("Activity", activity_name),
                 row("Date", str(book_date)),
-                row("Time", str(book_time) if book_time else "—"),
                 row("Guests", f"{num_people} people"),
                 ft.Divider(),
                 row("Total", f"Rs {total_price}", True),

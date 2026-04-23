@@ -102,6 +102,14 @@ def activities_api(request):
 # BOOKINGS (FUNCTION-BASED)
 # =========================================================
 
+def activity_has_active_booking(activity_id, booking_date):
+    return (
+        Booking.objects
+        .filter(activity_id=activity_id, date=booking_date)
+        .exclude(status=Booking.Status.CANCELLED)
+        .exists()
+    )
+
 def user_bookings_api(request, user_id):
     bookings = Booking.objects.filter(customer_id=user_id)
     serializer = BookingSerializer(bookings, many=True)
@@ -244,8 +252,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         try:
             activity_id = request.data.get("activity_id")
-            date        = request.data.get("booking_date")
-            num_people  = request.data.get("num_people")
+            date = request.data.get("booking_date")
+            num_people = request.data.get("num_people")
 
             if not activity_id:
                 return Response({"error": "activity_id is required"}, status=400)
@@ -255,6 +263,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
             if not num_people:
                 return Response({"error": "num_people is required"}, status=400)
+
+            if activity_has_active_booking(activity_id, date):
+                return Response(
+                    {
+                        "error": "This activity is already booked for the selected date. Please choose another date."
+                    },
+                    status=400,
+                )
 
             if request.user.is_authenticated:
                 customer = request.user
