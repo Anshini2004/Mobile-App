@@ -4,6 +4,7 @@
 
 {% block extrahead %}
 <link rel="stylesheet" href="{% static 'css/review.css' %}">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -81,5 +82,57 @@
     </div>
 </div>
 
-<script src="{% static 'js/review.js' %}"></script>
+<script>
+    $(function () {
+        const emptyStar = "{% static 'images/star-empty.png' %}";
+        const filledStar = "{% static 'images/star-filled.png' %}";
+
+        function updateStars(rating) {
+            $(".star").each(function () {
+                const starRating = parseInt($(this).data("rating"), 10);
+                const img = $(this).find("img");
+
+                if (starRating <= rating) {
+                    img.attr("src", filledStar);
+                } else {
+                    img.attr("src", emptyStar);
+                }
+            });
+        }
+
+        const initialRating = parseInt($("#ratingInput").val(), 10) || 0;
+        updateStars(initialRating);
+
+        $(".star").on("click", function () {
+            const rating = parseInt($(this).data("rating"), 10);
+            $("#ratingInput").val(rating);
+            updateStars(rating);
+        });
+
+        $("#reviewForm").on("submit", function (e) {
+            e.preventDefault();
+
+            const $form = $(this);
+            const $button = $form.find('button[type="submit"]');
+
+            $.ajax({
+                url: $form.attr("action"),
+                type: "POST",
+                data: $form.serialize(),
+                beforeSend: function () {
+                    $button.prop("disabled", true);
+                },
+                success: function () {
+                    window.location.reload();
+                },
+                error: function () {
+                    alert("Unable to save review. Please try again.");
+                },
+                complete: function () {
+                    $button.prop("disabled", false);
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

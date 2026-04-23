@@ -12,6 +12,7 @@ from .views import (
     current_user, #to remove this
     UserViewSet,
     AuthViewSet,
+    NearMeActivityViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'activities', ActivityViewSet, basename='activity')
 router.register(r"auth", AuthViewSet, basename="auth")
+router.register(r"nearmeactivity", NearMeActivityViewSet, basename='nearme')
 
 
 urlpatterns = [
@@ -36,6 +38,6 @@ urlpatterns = [
     path("activities/", ActivityListView.as_view()),
     path("activities/<int:pk>/", ActivityDetailView.as_view()),
     path("bookings/", BookingCreateView.as_view()),
-    path('userprofile/', current_user, name='profile'), # Flet will GET here to get user info
+    path('userprofile/', current_user, name='userprofile'), # Flet will GET here to get user info
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]

@@ -129,6 +129,25 @@ def api_get_me(page):
             "fatal": str(exc),
         }
 
+def api_update_me(page, data):
+    try:
+        response = requests.patch(
+            f"{API_BASE_URL}/auth/me/",
+            json=data,
+            headers=get_auth_headers(page),
+            timeout=20,
+        )
+        payload = _json_or_default(response)
+        return {
+            "ok": response.status_code == 200,
+            "status_code": response.status_code,
+            "data": payload,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "fatal": str(exc),
+        }
 
 def api_refresh_token(page):
     refresh_token = page.session.store.get("refresh_token")

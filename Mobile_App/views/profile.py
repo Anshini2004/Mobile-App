@@ -3,9 +3,9 @@ import re
 import flet as ft
 import httpx
 
-from utils.api_client import get_auth_headers, api_logout
+from utils.api_client import api_update_me, api_logout
 
-API_BASE_URL = "http://127.0.0.1:8000/api"
+#API_BASE_URL = "http://127.0.0.1:8000/grandblue/api"
 
 
 def profile_view(page: ft.Page):
@@ -104,8 +104,6 @@ def profile_view(page: ft.Page):
         page.update()
 
     async def save_async():
-        headers = get_auth_headers(page)
-
         payload = {
             f["label"].lower().replace(" ", "_"): f["tf"].value
             for f in form_fields if f["label"] != "PASSWORD"
@@ -115,19 +113,19 @@ def profile_view(page: ft.Page):
         if pw:
             payload["password"] = pw
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.patch(
-                f"{API_BASE_URL}/auth/me/",
-                json=payload,
-                headers=headers
-            )
+        print("CALLING api_update_me...")
 
-        if resp.status_code == 401:
+        # ✅ run blocking request in separate thread
+        result = await asyncio.to_thread(api_update_me, page, payload)
+
+        print("RESULT:", result)
+
+        if result.get("status_code") == 401:
             page.go("/")
             return
 
-        if resp.status_code == 200:
-            page.session.store.set("user_data", resp.json())
+        if result.get("ok"):
+            page.session.store.set("user_data", result["data"])
 
             page.snack_bar = ft.SnackBar(ft.Text("Saved"), bgcolor=TEAL)
             page.snack_bar.open = True
@@ -195,6 +193,7 @@ def profile_view(page: ft.Page):
         edit_btn,
         save_btn,
         logout_btn,
+        ft.Container(height=60)
     ], scroll=ft.ScrollMode.AUTO)
 
     return body

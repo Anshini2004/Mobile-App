@@ -12,29 +12,8 @@ from django.contrib.auth.password_validation import validate_password
 
 User = get_user_model()
 
-# ---------------------------
-# USER SERIALIZER
-# ---------------------------
-
-class UserSerializer(serializers.ModelSerializer):  #REMOVE DUPLICATES OF THIS CLASS
-    password = serializers.CharField(write_only=True, required = False)
-    class Meta:
-        model = User
-        fields = [
-            "id", "email", "first_name", "last_name",
-            "phone", "password", "total_bookings", "total_spent"
-        ]
-
-    def create(self, validated_data):
-        validated_data["password"] = make_password(validated_data["password"])
-        return super().create(validated_data)
-
-    def update(self, instance, validated_data):
-        if "password" in validated_data:
-            instance.password = make_password(validated_data.pop("password"))
-        return super().update(instance, validated_data)
-
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
     phone_number = serializers.CharField(source="phone", read_only=True)
     full_name = serializers.SerializerMethodField()
 
@@ -43,21 +22,40 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "email",
-            "phone",
             "username",
             "first_name",
             "last_name",
-            "full_name",
+            "phone",
             "phone_number",
+            "full_name",
+            "password",
             "total_bookings",
             "total_spent",
         ]
 
     def get_full_name(self, obj):
         return obj.get_full_name().strip() or obj.username or obj.email
-# ---------------------------
-# ACTIVITY IMAGE
-# ---------------------------
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        user = super().create(validated_data)
+
+        if password:
+            user.password = make_password(password)
+            user.save()
+
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        
+        instance = super().update(instance, validated_data)
+
+        if password:
+            instance.password = make_password(password)
+            instance.save()
+
+        return instance
 
             
 class RegisterSerializer(serializers.ModelSerializer):
@@ -133,9 +131,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-
-    
-
 class ActivityImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
@@ -201,6 +196,32 @@ class ActivitySerializer(serializers.ModelSerializer):
 
         return None
 
+
+#nearme's activity images
+class NearMeActivitySerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'name',
+            'location',
+            'activity_type',
+            'description',
+            'image'
+        ]
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        first_image = obj.images.first()
+
+        if first_image and first_image.image:
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+
+        return None
 
 # ---------------------------
 # ACTIVITY DETAIL

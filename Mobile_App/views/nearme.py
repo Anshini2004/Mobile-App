@@ -6,7 +6,7 @@ import math
 
 from utils.api_client import get_auth_headers
 
-API_URL = "http://127.0.0.1:8000/api/activities/"
+API_URL = "http://127.0.0.1:8000/grandblue/api/nearmeactivity/"
 GEOCODE_CACHE = {}
 
 
@@ -218,9 +218,12 @@ def nearme_view(page: ft.Page):
         ],
     )
 
-    near_me_btn = ft.FloatingActionButton(
-        icon=ft.Icons.MY_LOCATION,
-        on_click=lambda e: show_near_me_dialog()
+    near_me_btn = ft.Container(
+        content=ft.FloatingActionButton(
+            icon=ft.Icons.MY_LOCATION,
+            on_click=lambda e: show_near_me_dialog()
+        ),
+        margin=ft.margin.only(bottom=100, right=10)
     )
 
     body = ft.Stack(

@@ -5,7 +5,7 @@ import requests
 from datetime import datetime, date
 from urllib.parse import quote_plus
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000/grandblue"
 
 
 def activity_detail_view(page: ft.Page, activity_id: int):
