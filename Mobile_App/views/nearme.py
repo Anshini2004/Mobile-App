@@ -72,7 +72,7 @@ def nearme_view(page: ft.Page):
                     ft.Row(
                         alignment=ft.MainAxisAlignment.CENTER,
                         controls=[
-                            ft.ElevatedButton("Book Now", on_click=lambda e: None),
+                            ft.ElevatedButton("Book Now", on_click=lambda e, a=activity: page.go(f"/activity/{a['id']}")),
                             ft.TextButton("Close", on_click=close_popup),
                         ],
                     ),
