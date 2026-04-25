@@ -1,4 +1,4 @@
-import threading
+import asyncio
 
 import flet as ft
 import requests
@@ -48,10 +48,24 @@ def fix_image_url(url):
 def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
     name = activity.get("name", "—")
     description = activity.get("description", "No description available.")
-    avg_rating = activity.get("avg_rating")
+    avg_rating = activity.get("avg_rating") or activity.get("average_rating")
 
-    image_url = fix_image_url(activity.get("image") or activity.get("image_url"))
+    images = activity.get("images", [])
 
+    image_url = None
+
+    if isinstance(images, list) and len(images) > 0:
+        first_image = images[0]
+
+        if isinstance(first_image, dict):
+            image_url = first_image.get("image_url") or first_image.get("image")
+        else:
+            image_url = first_image
+
+    if not image_url:
+        image_url = activity.get("image") or activity.get("image_url")
+
+    image_url = fix_image_url(image_url)
 
 
     short_desc = description[:100] + "…" if len(description) > 100 else description
@@ -261,7 +275,28 @@ def catalogue_view(page: ft.Page) -> ft.Column:
         visible=False,
     )
 
+    def normalize_catalogue_data(data):
+        if not data:
+            return []
+
+        # Already flat: [{id, name, image, ...}]
+        if isinstance(data, list) and data and "id" in data[0]:
+            return data
+
+        # Grouped: [{activity_type, activities: [...]}]
+        if isinstance(data, list) and data and "activities" in data[0]:
+            flat = []
+            for group in data:
+                for activity in group.get("activities", []):
+                    activity.setdefault("activity_type", group.get("activity_type", "Other"))
+                    flat.append(activity)
+            return flat
+
+        return []
+
     def populate_sections(data):
+        data = normalize_catalogue_data(data)
+
         content_col.controls.clear()
 
         grouped = {}
@@ -297,14 +332,14 @@ def catalogue_view(page: ft.Page) -> ft.Column:
         content_col.visible = True
         page.update()
 
-    def load_catalogue():
+    async def load_catalogue():
         try:
             cached_data = page.session.store.get(CACHE_KEY)
             if cached_data:
                 populate_sections(cached_data)
                 return
 
-            response = requests.get(CATALOGUE_URL, timeout=10)
+            response = await asyncio.to_thread(requests.get,CATALOGUE_URL, timeout=10)
             response.raise_for_status()
             data = response.json()
 
@@ -333,7 +368,7 @@ def catalogue_view(page: ft.Page) -> ft.Column:
     if cached_data:
         populate_sections(cached_data)
     else:
-        threading.Thread(target=load_catalogue, daemon=True).start()
+        page.run_task(load_catalogue)
 
     inner = ft.Column(
         controls=[
