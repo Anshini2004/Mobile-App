@@ -6,7 +6,7 @@ from utils.constants import *
 from views.components import chip, stat_tile, nav_btn
 
 
-def bookings_page(page: ft.Page, user_id: int = 1):
+def bookings_page(page: ft.Page):
 
     # ── Loading / error states ────────────────────────────────────────────────
     loading_indicator = ft.Container(
@@ -117,7 +117,7 @@ def bookings_page(page: ft.Page, user_id: int = 1):
                     page.update()
 
                     # backend call
-                    success = await cancel_booking(booking["db_id"])
+                    success = await cancel_booking(page, booking["db_id"])
 
                     # rollback if failed
                     if not success:
@@ -408,7 +408,7 @@ def bookings_page(page: ft.Page, user_id: int = 1):
     async def load_data():
         nonlocal BOOKINGS
         try:
-            BOOKINGS = await get_bookings(user_id)
+            BOOKINGS = await get_bookings(page)
             loading_indicator.visible = False
             error_banner.visible = False
             header_subtitle.value = (

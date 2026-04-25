@@ -96,7 +96,7 @@ def main(page: ft.Page):
                     ft.Stack(
                         expand=True,
                         controls=[
-                            bookings_page(page, user_id),  
+                            bookings_page(page),  
                             bottom_nav(page, "/bookings"),
                         ],
                     )

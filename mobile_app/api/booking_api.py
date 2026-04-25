@@ -2,6 +2,7 @@
 
 import httpx
 import flet as ft
+from utils.api_client import get_auth_headers
 
 BASE_URL = "http://127.0.0.1:8000/grandblue/api"
 
@@ -49,19 +50,24 @@ def format_booking(b: dict) -> dict:
     }
 
 
-async def get_bookings(user_id: int) -> list[dict]:
+async def get_bookings(page) -> list[dict]:
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/bookings/{user_id}/", timeout=10)
+        response = await client.get(
+            f"{BASE_URL}/bookings/0/",
+            headers=get_auth_headers(page),
+            timeout=10
+        )
         response.raise_for_status()
         raw = response.json()
         return [format_booking(b) for b in raw]
 
 
-async def cancel_booking(db_id: int) -> bool:
+async def cancel_booking(page, db_id: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(
                 f"{BASE_URL}/bookings/{db_id}/cancel/",
+                headers=get_auth_headers(page),
                 timeout=10
             )
             return response.status_code == 200

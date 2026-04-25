@@ -109,7 +109,6 @@ def profile_view(page: ft.Page):
         pw = next(f for f in form_fields if f["label"] == "PASSWORD")["tf"].value
         if pw:
             payload["password"] = pw    
-        payload["user_id"] = page.session.store.get("user_id")
         print("CALLING api_update_me...")
 
         result = await asyncio.to_thread(api_update_me, page, payload)
@@ -150,7 +149,7 @@ def profile_view(page: ft.Page):
 
     async def logout_async():
         await asyncio.to_thread(api_logout, page)
-        page.go("/login")
+        page.go("/")
 
     def logout(e):
         page.run_task(logout_async)

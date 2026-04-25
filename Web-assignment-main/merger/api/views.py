@@ -1,26 +1,20 @@
 # Django
-import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import authenticate, get_user_model
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from django.utils import timezone
 from collections import defaultdict
+from django.contrib.auth import authenticate, get_user_model
+from django.utils import timezone
 from django.db.models import Avg, Q
 
 # DRF
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # Models
 from merger.models import Activity, Booking, Payment
-from ..models import User, BookingReview, Notification
+from ..models import BookingReview, Notification
 
 # Serializers
 from .serializers import (
@@ -36,56 +30,12 @@ from .serializers import (
     RegisterSerializer,
     ActivityCatalogueSerializer,
 )
+
 User = get_user_model()
 
-# AUTH APIs
-@csrf_exempt
-def signup_api(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
 
-        try:
-            validate_email(data.get("email"))
-        except ValidationError:
-            return JsonResponse({"error": "Invalid email"}, status=400)
+# ── Helpers ───────────────────────────────────────────────
 
-        if User.objects.filter(email=data.get("email")).exists():
-            return JsonResponse({"error": "Email already exists"}, status=400)
-
-        serializer = UserSerializer(data=data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return JsonResponse({"message": "User created", "user_id": user.id})
-
-        return JsonResponse(serializer.errors, status=400)
-
-
-@csrf_exempt
-def login_api(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
-
-        user = authenticate(
-            request,
-            username=data.get("email"),
-            password=data.get("password")
-        )
-
-        if user:
-            return JsonResponse({
-                "message": "Login successful",
-                "user_id": user.id
-            })
-
-        return JsonResponse({"error": "Invalid credentials"}, status=400)
-
-# ACTIVITIES
-def activities_api(request):
-    activities = Activity.objects.all()
-    serializer = ActivitySerializer(activities, many=True)
-    return JsonResponse(serializer.data, safe=False)
-
-# BOOKINGS
 def activity_has_active_booking(activity_id, booking_date):
     return (
         Booking.objects
@@ -94,122 +44,99 @@ def activity_has_active_booking(activity_id, booking_date):
         .exists()
     )
 
+
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+    }
+
+
+# ── Bookings ──────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def user_bookings_api(request, user_id):
-    bookings = Booking.objects.filter(customer_id=user_id)
+    """
+    Old URL-compatible endpoint:
+    /bookings/<int:user_id>/
+
+    user_id is ignored on purpose.
+    JWT request.user is used instead.
+    """
+    bookings = Booking.objects.filter(customer=request.user)
     serializer = BookingSerializer(bookings, many=True)
-    return JsonResponse(serializer.data, safe=False)
+    return Response(serializer.data)
 
 
-@csrf_exempt
-def create_booking_api(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
-
-        serializer = BookingSerializer(data=data)
-        if serializer.is_valid():
-            user_id = data.get("customer_id")  # fallback
-
-            if request.user.is_authenticated:
-                booking = serializer.save(customer=request.user)
-            else:
-                booking = serializer.save(customer_id=user_id)
-            return JsonResponse({
-                "message": "Booking created",
-                "booking_id": booking.id
-            })
-
-        return JsonResponse(serializer.errors, status=400)
-
-
-@csrf_exempt
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def cancel_booking_api(request, booking_id):
-    if request.method == "PATCH":
-        try:
-            booking = Booking.objects.get(id=booking_id)
+    try:
+        booking = Booking.objects.get(id=booking_id, customer=request.user)
 
-            if booking.status != "CONFIRMED":
-                return JsonResponse(
-                    {"error": "Only confirmed bookings can be cancelled"},
-                    status=400
-                )
-
-            booking.status = "CANCELLED"
-            booking.save()
-
-            return JsonResponse({"message": "Booking cancelled", "id": booking.id})
-
-        except Booking.DoesNotExist:
-            return JsonResponse({"error": "Booking not found"}, status=404)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-
-# PAYMENT
-@csrf_exempt
-def payment_api(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
-
-        try:
-            booking = Booking.objects.get(id=data.get("booking"))
-
-            payment = Payment.objects.create(
-                booking=booking,
-                amount=booking.price_total,
-                status="PAID",
-                paid_at=timezone.now()
+        if booking.status != Booking.Status.CONFIRMED:
+            return Response(
+                {"error": "Only confirmed bookings can be cancelled"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-            booking.status = "CONFIRMED"
-            booking.save()
+        booking.status = Booking.Status.CANCELLED
+        booking.save()
 
-            serializer = PaymentSerializer(payment)
-            return JsonResponse(serializer.data)
+        return Response({"message": "Booking cancelled", "id": booking.id})
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+    except Booking.DoesNotExist:
+        return Response(
+            {"error": "Booking not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
-# REVIEWS
-@csrf_exempt
-def review_api(request):
-    if request.method == "POST":
-        data = json.loads(request.body)
 
-        serializer = BookingReviewSerializer(data=data)
-        if serializer.is_valid():
-            review = serializer.save()
-            return JsonResponse({
-                "message": "Review saved",
-                "id": review.id
-            })
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_bookings(request):
+    bookings = Booking.objects.filter(customer=request.user)
+    serializer = BookingSerializer(bookings, many=True)
+    return Response(serializer.data)
 
-        return JsonResponse(serializer.errors, status=400)
 
-# PROFILE
-@csrf_exempt
-def profile_update_api(request, user_id):
-    if request.method == "POST":
-        data = json.loads(request.body)
+class BookingCreateView(generics.CreateAPIView):
+    serializer_class = BookingCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-        user = User.objects.get(id=user_id)
+    def get_serializer_context(self):
+        return {"request": self.request}
 
-        serializer = UserSerializer(user, data=data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse({"message": "Profile updated"})
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        return JsonResponse(serializer.errors, status=400)
+        booking = serializer.save()
 
-# NOTIFICATIONS
-def notifications_api(request, user_id):
-    notes = Notification.objects.filter(user_id=user_id)
-    serializer = NotificationSerializer(notes, many=True)
-    return JsonResponse(serializer.data, safe=False)
+        return Response(
+            {
+                "booking_id": booking.pk,
+                "activity": booking.activity.name,
+                "date": str(booking.date),
+                "group_size": booking.group_size,
+                "price_total": str(booking.price_total),
+                "status": booking.status,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
-# ── Payment ViewSet ───────────────────────────────────────
+
+# ── Payments ──────────────────────────────────────────────
+
 class PaymentViewSet(viewsets.ModelViewSet):
-    queryset = Payment.objects.select_related("booking")
+    queryset = Payment.objects.select_related("booking", "booking__customer")
     serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return self.queryset.filter(booking__customer=self.request.user)
 
     def create(self, request, *args, **kwargs):
         try:
@@ -228,27 +155,15 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
             if activity_has_active_booking(activity_id, date):
                 return Response(
-                    {
-                        "error": "This activity is already booked for the selected date. Please choose another date."
-                    },
+                    {"error": "This activity is already booked for the selected date."},
                     status=400,
                 )
-
-            if request.user.is_authenticated:
-                customer = request.user
-            else:
-                customer = User.objects.filter(is_staff=True).first()
-                if not customer:
-                    return Response(
-                        {"error": "No test user found. Create a superuser first"},
-                        status=500,
-                    )
 
             booking = Booking.objects.create(
                 activity_id=activity_id,
                 date=date,
                 group_size=int(num_people),
-                customer=customer,
+                customer=request.user,
             )
 
             payment = Payment.objects.create(
@@ -260,20 +175,24 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 paid_at=timezone.now(),
             )
 
+            booking.status = Booking.Status.CONFIRMED
+            booking.save()
+
             return Response(
                 {
                     "status": "success",
                     "booking_id": booking.id,
                     "payment_id": payment.id,
+                    "customer": request.user.email,
                 },
-                status=200,
+                status=status.HTTP_200_OK,
             )
 
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# ── Activity Views ────────────────────────────────────────
+# ── Activities ────────────────────────────────────────────
 
 class ActivityListView(generics.ListAPIView):
     queryset = Activity.objects.prefetch_related("images", "highlights").all()
@@ -295,59 +214,62 @@ class ActivityDetailView(generics.RetrieveAPIView):
         return {"request": self.request}
 
 
-# ── Booking Create ───────────────────────────────────────
-
-class BookingCreateView(generics.CreateAPIView):
-    serializer_class = BookingCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_serializer_context(self):
-        return {"request": self.request}
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        booking = serializer.save()
-
-        return Response(
-            {
-                "booking_id":  booking.pk,
-                "activity":    booking.activity.name,
-                "date":        str(booking.date),
-                "group_size":  booking.group_size,
-                "price_total": str(booking.price_total),
-                "status":      booking.status,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-
 class NearMeActivityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Activity.objects.all()
     serializer_class = NearMeActivitySerializer
     permission_classes = [permissions.AllowAny]
+
+
+class ActivityViewSet(ViewSet):
+    permission_classes = [permissions.AllowAny]
+
+    def list(self, request):
+        activities = (
+            Activity.objects
+            .prefetch_related("images")
+            .annotate(
+                average_rating=Avg(
+                    "bookings__review__rating",
+                    filter=Q(bookings__review__is_deleted=False),
+                )
+            )
+            .order_by("activity_type", "name")
+        )
+
+        serializer = ActivityCatalogueSerializer(
+            activities,
+            many=True,
+            context={"request": request},
+        )
+
+        grouped = defaultdict(list)
+        for item in serializer.data:
+            grouped[item["activity_type"]].append(item)
+
+        result = [
+            {
+                "activity_type": activity_type,
+                "activities": items,
+            }
+            for activity_type, items in grouped.items()
+        ]
+
+        return Response(result)
+
+
+# ── Users / Auth ──────────────────────────────────────────
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-@api_view(['GET'])
+
+@api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def current_user(request):
-    """
-    Returns data of the currently authenticated user.
-    """
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-    return {
-        "refresh": str(refresh),
-        "access": str(refresh.access_token),
-    }
 
 
 class AuthViewSet(viewsets.GenericViewSet):
@@ -357,14 +279,13 @@ class AuthViewSet(viewsets.GenericViewSet):
     def register(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        serializer.save()
 
         return Response(
-            {
-                "message": "Account created successfully.",
-            },
+            {"message": "Account created successfully."},
             status=status.HTTP_201_CREATED,
         )
+
     @action(detail=False, methods=["post"], url_path="login")
     def login(self, request):
         email = (request.data.get("email") or "").strip().lower()
@@ -410,52 +331,30 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(
         detail=False,
         methods=["get", "patch"],
-        permission_classes=[permissions.AllowAny],
+        permission_classes=[permissions.IsAuthenticated],
         url_path="me",
     )
     def me(self, request):
-
         if request.method == "GET":
-            user_id = request.query_params.get("user_id")
-
-            if not user_id:
-                return Response({"error": "user_id required"}, status=400)
-
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=404)
-
-            serializer = UserSerializer(user)
+            serializer = UserSerializer(request.user)
             return Response(serializer.data)
 
-        elif request.method == "PATCH":
-            user_id = request.data.get("user_id")
+        serializer = UserSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+        )
 
-            if not user_id:
-                return Response({"error": "user_id required"}, status=400)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
 
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=404)
-
-            serializer = UserSerializer(
-                user,
-                data=request.data,
-                partial=True
-            )
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-
-            return Response(serializer.errors, status=400)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         detail=False,
         methods=["post"],
-        permission_classes = [permissions.AllowAny],
+        permission_classes=[permissions.IsAuthenticated],
         url_path="logout",
     )
     def logout(self, request):
@@ -479,45 +378,40 @@ class AuthViewSet(viewsets.GenericViewSet):
                 {"detail": "Invalid refresh token."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        
-class ActivityViewSet(ViewSet):
-    def list(self, request):
-        activities = (
-            Activity.objects
-            .prefetch_related("images")
-            .annotate(
-                average_rating=Avg(
-                    "bookings__review__rating",
-                    filter=Q(bookings__review__is_deleted=False)
-                )
-            )
-            .order_by("activity_type", "name")
-        )
 
-        serializer = ActivityCatalogueSerializer(
-            activities,
-            many=True,
-            context={"request": request}
-        )
 
-        grouped = defaultdict(list)
-        for item in serializer.data:
-            grouped[item["activity_type"]].append(item)
+# ── Reviews ───────────────────────────────────────────────
 
-        result = [
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def review_api(request):
+    serializer = BookingReviewSerializer(data=request.data)
+
+    if serializer.is_valid():
+        review = serializer.save()
+        return Response(
             {
-                "activity_type": activity_type,
-                "activities": items,
-            }
-            for activity_type, items in grouped.items()
-        ]
+                "message": "Review saved",
+                "id": review.id,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
-        return Response(result)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ── Notifications ─────────────────────────────────────────
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def my_bookings(request):
-    bookings = Booking.objects.filter(customer=request.user)
-    serializer = BookingSerializer(bookings, many=True)
+def notifications_api(request, user_id):
+    """
+    Old URL-compatible endpoint:
+    /notifications/<int:user_id>/
+
+    user_id is ignored on purpose.
+    JWT request.user is used instead.
+    """
+    notes = Notification.objects.filter(user=request.user)
+    serializer = NotificationSerializer(notes, many=True)
     return Response(serializer.data)

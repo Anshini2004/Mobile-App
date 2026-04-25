@@ -2,11 +2,10 @@ import threading
 
 import flet as ft
 import requests
+from utils.config import API_BASE_URL, IMAGE_BASE_URL
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-
-API_BASE_URL  = "http://127.0.0.1:8000/grandblue"
-CATALOGUE_URL = f"{API_BASE_URL}/api/activities/"
+CATALOGUE_URL = f"{API_BASE_URL}/api/activities-catalogue/"
 
 TEAL_MAIN  = "#26B5A0"
 TEAL_LIGHT = "#E0F5F2"
@@ -25,17 +24,35 @@ CARD_HEIGHT = 110
 
 CACHE_KEY = "catalogue_data"
 
+def fix_image_url(url):
+    if not url:
+        return None
+
+    url = str(url)
+
+    if url.startswith("http://127.0.0.1:8000"):
+        return url.replace("http://127.0.0.1:8000", IMAGE_BASE_URL)
+
+    if url.startswith("http://localhost:8000"):
+        return url.replace("http://localhost:8000", IMAGE_BASE_URL)
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    if url.startswith("/"):
+        return f"{IMAGE_BASE_URL}{url}"
+
+    return f"{IMAGE_BASE_URL}/{url}"
+
 
 def build_activity_card(page: ft.Page, activity: dict) -> ft.Column:
     name = activity.get("name", "—")
     description = activity.get("description", "No description available.")
     avg_rating = activity.get("avg_rating")
 
-    image_url = activity.get("image")
-    if image_url:
-        image_url = f"http://127.0.0.1:8000{image_url}"
-    else:
-        image_url = None
+    image_url = fix_image_url(activity.get("image") or activity.get("image_url"))
+
+
 
     short_desc = description[:100] + "…" if len(description) > 100 else description
 

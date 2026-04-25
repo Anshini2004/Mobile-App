@@ -3,6 +3,7 @@ import requests
 import re
 from datetime import datetime
 import asyncio
+from utils.api_client import get_auth_headers
 
 BASE_URL = "http://127.0.0.1:8000/grandblue"
 
@@ -223,6 +224,7 @@ def payment_view(page: ft.Page):
                     "expiry_date": expiry.value.strip(),
                     "cvv": cvv.value,
                 },
+                headers=get_auth_headers(page),
                 timeout=15,
             )
 

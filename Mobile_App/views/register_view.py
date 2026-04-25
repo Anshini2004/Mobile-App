@@ -131,7 +131,7 @@ def register_view(page: ft.Page):
 
         if result["ok"]:
             show_message("Account created successfully! Please log in.", SUCCESS)
-            await page.push_route("/")
+            await page.push_route("/login")
             return
 
         data = result.get("data", {})
@@ -175,7 +175,7 @@ def register_view(page: ft.Page):
         page.update()
 
     async def go_login(e):
-        await page.push_route("/")
+        await page.push_route("/login")
 
     card = ft.Container(
         width=470,

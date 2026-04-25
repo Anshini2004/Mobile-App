@@ -63,8 +63,10 @@
             </p>
         </div>
 
+        <div id="ajax-message-container" class="space-y-2 hidden"></div>
+
         {% if messages %}
-        <div class="space-y-2">
+        <div class="space-y-2" id="django-message-container">
             {% for message in messages %}
             <div class="p-4 rounded-md text-sm font-medium
                         {% if 'error' in message.tags %}bg-red-50 text-red-700 border border-red-200
@@ -76,7 +78,7 @@
         </div>
         {% endif %}
 
-        <form class="mt-8 space-y-6" action="{% url 'signup' %}" method="post">
+        <form id="signupForm" class="mt-8 space-y-6" action="{% url 'signup' %}" method="post">
             {% csrf_token %}
 
             <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
@@ -85,6 +87,7 @@
                     <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <input type="text" id="first_name" name="first_name" required
                         class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                    <p id="error-first_name" class="mt-1 text-xs text-red-600 hidden"></p>
                 </div>
 
                 <!-- Last Name -->
@@ -92,6 +95,7 @@
                     <label for="last_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                     <input type="text" id="last_name" name="last_name" required
                         class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                    <p id="error-last_name" class="mt-1 text-xs text-red-600 hidden"></p>
                 </div>
             </div>
 
@@ -101,6 +105,7 @@
                 <input type="tel" id="phone_number" name="phone_number" pattern="[0-9]{8}" required
                     class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
                     placeholder="8 digits">
+                <p id="error-phone_number" class="mt-1 text-xs text-red-600 hidden"></p>
             </div>
 
             <!-- Email -->
@@ -108,6 +113,7 @@
                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                 <input type="email" id="email" name="email" required
                     class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                <p id="error-email" class="mt-1 text-xs text-red-600 hidden"></p>
             </div>
 
             <!-- Username -->
@@ -115,6 +121,7 @@
                 <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input type="text" id="username" name="username" required
                     class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                <p id="error-username" class="mt-1 text-xs text-red-600 hidden"></p>
             </div>
 
             <!-- Password -->
@@ -123,6 +130,7 @@
                 <input type="password" id="password" name="password" required
                     class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
                 <p class="mt-1 text-xs text-gray-500">Must be at least 8 characters long.</p>
+                <p id="error-password" class="mt-1 text-xs text-red-600 hidden"></p>
             </div>
 
             <!-- Confirm Password -->
@@ -131,6 +139,7 @@
                     Password</label>
                 <input type="password" id="confirm_password" name="confirm_password" required
                     class="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out">
+                <p id="error-confirm_password" class="mt-1 text-xs text-red-600 hidden"></p>
             </div>
 
             <!-- Agree to Terms and Conditions -->
@@ -144,14 +153,15 @@
                         class="text-blue-600 hover:underline" target="_self">Terms and Conditions</a>
                 </label>
             </div>
+            <p id="error-agree_terms" class="mt-1 text-xs text-red-600 hidden"></p>
 
             <div>
-                <button type="submit"
+                <button id="signupBtn" type="submit"
                     class="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 cursor-pointer hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150 ease-in-out shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                     <span class="absolute left-0 inset-y-0 flex items-center pl-3">
                         <img src="{% static 'images/checkmark-icon.png' %}" alt="Success" class="h-5 w-5">
                     </span>
-                    Sign Up
+                    <span id="signupBtnText">Sign Up</span>
                 </button>
             </div>
         </form>
@@ -167,4 +177,106 @@
         </div>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+    $(function () {
+        const $form = $("#signupForm");
+        const $btn = $("#signupBtn");
+        const $btnText = $("#signupBtnText");
+        const $ajaxBox = $("#ajax-message-container");
+        const $djangoBox = $("#django-message-container");
+
+        const fieldIds = [
+            "first_name",
+            "last_name",
+            "phone_number",
+            "email",
+            "username",
+            "password",
+            "confirm_password",
+            "agree_terms"
+        ];
+
+        function clearFieldErrors() {
+            fieldIds.forEach(function(field) {
+                $("#error-" + field).addClass("hidden").text("");
+            });
+        }
+
+        function showMessages(messages, type) {
+            let html = "";
+            let classes = "bg-blue-50 text-blue-700 border border-blue-200";
+
+            if (type === "error") {
+                classes = "bg-red-50 text-red-700 border border-red-200";
+            } else if (type === "success") {
+                classes = "bg-green-50 text-green-700 border border-green-200";
+            }
+
+            messages.forEach(function(message) {
+                html += `<div class="p-4 rounded-md text-sm font-medium ${classes}">${message}</div>`;
+            });
+
+            $ajaxBox.html(html).removeClass("hidden");
+        }
+
+        $form.on("submit", function (e) {
+            e.preventDefault();
+
+            clearFieldErrors();
+            $ajaxBox.addClass("hidden").html("");
+            $djangoBox.hide();
+
+            $btn.prop("disabled", true);
+            $btnText.text("Signing up...");
+
+            $.ajax({
+                url: $form.attr("action"),
+                type: "POST",
+                data: $form.serialize(),
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                success: function (response) {
+                    showMessages([response.message || "Account created successfully. Please log in."], "success");
+
+                    if (response.redirect_url) {
+                        setTimeout(function () {
+                            window.location.href = response.redirect_url;
+                        }, 1000);
+                    }
+                },
+                error: function (xhr) {
+                    let shownGeneralError = false;
+
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        const errors = xhr.responseJSON.errors;
+
+                        Object.keys(errors).forEach(function(field) {
+                            const fieldErrors = errors[field];
+
+                            if (field === "__all__") {
+                                showMessages(fieldErrors, "error");
+                                shownGeneralError = true;
+                            } else {
+                                $("#error-" + field).removeClass("hidden").text(fieldErrors.join(" "));
+                            }
+                        });
+
+                        if (!shownGeneralError) {
+                            showMessages(["Please correct the highlighted fields."], "error");
+                        }
+                    } else {
+                        showMessages(["Registration failed. Please try again."], "error");
+                    }
+                },
+                complete: function () {
+                    $btn.prop("disabled", false);
+                    $btnText.text("Sign Up");
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

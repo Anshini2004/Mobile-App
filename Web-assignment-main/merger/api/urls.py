@@ -1,4 +1,3 @@
-from .views import *
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -9,35 +8,41 @@ from .views import (
     ActivityDetailView,
     BookingCreateView,
     ActivityViewSet,
-    current_user, #to remove this
     UserViewSet,
     AuthViewSet,
     NearMeActivityViewSet,
+    user_bookings_api,
+    cancel_booking_api,
+    review_api,
+    notifications_api,
+    current_user,
 )
 
 router = DefaultRouter()
-router.register(r'payments', PaymentViewSet, basename='payments')
-router.register(r'users', UserViewSet, basename='user')
-router.register(r'activities', ActivityViewSet, basename='activity')
+router.register(r"payments", PaymentViewSet, basename="payments")
+router.register(r"users", UserViewSet, basename="user")
+router.register(r"activities-catalogue", ActivityViewSet, basename="activity-catalogue")
 router.register(r"auth", AuthViewSet, basename="auth")
-router.register(r"nearmeactivity", NearMeActivityViewSet, basename='nearme')
-
+router.register(r"nearmeactivity", NearMeActivityViewSet, basename="nearme")
 
 urlpatterns = [
-    path("signup/", signup_api),
-    path("login/", login_api),
-    path("activities/", activities_api),
-    path("bookings/<int:user_id>/", user_bookings_api),
-    path("create-booking/", create_booking_api),
-    path("payment/", payment_api),
-    path("review/", review_api),
-    path("profile/<int:user_id>/", profile_update_api),
-    path("notifications/<int:user_id>/", notifications_api),
-    path("bookings/<int:booking_id>/cancel/", cancel_booking_api),
-    path("", include(router.urls)),
-    path("activities/", ActivityListView.as_view()),
-    path("activities/<int:pk>/", ActivityDetailView.as_view()),
-    path("bookings/", BookingCreateView.as_view()),
-    path('userprofile/', current_user, name='userprofile'),
+    # JWT auth
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # Activities
+    path("activities/", ActivityListView.as_view(), name="activity-list"),
+    path("activities/<int:pk>/", ActivityDetailView.as_view(), name="activity-detail"),
+
+    # Bookings
+    path("bookings/<int:user_id>/", user_bookings_api, name="user-bookings"),
+    path("bookings/<int:booking_id>/cancel/", cancel_booking_api, name="cancel-booking"),
+    path("bookings/", BookingCreateView.as_view(), name="booking-create"),
+
+    # Reviews / notifications / profile
+    path("review/", review_api, name="review"),
+    path("notifications/<int:user_id>/", notifications_api, name="notifications"),
+    path("userprofile/", current_user, name="userprofile"),
+
+    # ViewSets
+    path("", include(router.urls)),
 ]

@@ -187,47 +187,92 @@ def profile(request):
 
 
 def signup(request):
-    """Handle user signup using Django forms"""
-    if request.method == 'POST':
+    if request.method == "POST":
         form = SignUpForm(request.POST)
+        is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
+
         if form.is_valid():
-            try:
-                user = form.save()
-                messages.success(request, 'Account created successfully! Please log in.')
-                return redirect('login')
-            except Exception as e:
-                messages.error(request, f'Error creating account: {str(e)}')
+            form.save()
+
+            success_message = "Account created successfully. Please log in."
+
+            if is_ajax:
+                return JsonResponse({
+                    "success": True,
+                    "message": success_message,
+                    "redirect_url": "/grandblue/login/",
+                })
+
+            messages.success(request, success_message)
+            return redirect("login")
+
         else:
-            # Display form validation errors
-            for field, errors in form.errors.items():
-                for error in errors:
-                    if field == '__all__':
+            errors = {}
+
+            for field, field_errors in form.errors.items():
+                errors[field] = [str(error) for error in field_errors]
+
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "errors": errors,
+                }, status=400)
+
+            for field, field_errors in errors.items():
+                for error in field_errors:
+                    if field == "__all__":
                         messages.error(request, error)
                     else:
-                        field_name = field.replace('_', ' ').title()
-                        messages.error(request, f'{field_name}: {error}')
+                        field_name = field.replace("_", " ").title()
+                        messages.error(request, f"{field_name}: {error}")
 
-    return render(request, 'signup.html')
+    else:
+        form = SignUpForm()
+
+    return render(request, "signup.html", {"form": form})
 
 
 def login_view(request):
-    """Handle user login using Django forms"""
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
+
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            messages.success(request, f'Welcome back, {user.first_name}!')
+
+            success_message = f"Welcome back, {user.first_name}!"
+
+            if is_ajax:
+                return JsonResponse({
+                    "success": True,
+                    "message": success_message,
+                    "redirect_url": "/grandblue/",
+                })
+
+            messages.success(request, success_message)
             return redirect('homepage')
+        
         else:
-            # Display form validation errors
-            for field, errors in form.errors.items():
-                for error in errors:
+            errors = []
+
+            for field, field_errors in form.errors.items():
+                for error in field_errors:
                     if field == '__all__':
-                        messages.error(request, error)
+                        errors.append(error)
                     else:
                         field_name = field.replace('_', ' ').title()
-                        messages.error(request, f'{field_name}: {error}')
+                        errors.append(f"{field_name}: {error}")
+
+            if is_ajax:
+                return JsonResponse({
+                    "success": False,
+                    "errors": errors,
+                }, status=400)
+
+            for error in errors:
+                messages.error(request, error)
 
     return render(request, 'login.html')
 

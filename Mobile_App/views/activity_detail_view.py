@@ -4,8 +4,30 @@ import calendar
 import requests
 from datetime import datetime, date
 from urllib.parse import quote_plus
+from utils.config import IMAGE_BASE_URL
 
 BASE_URL = "http://127.0.0.1:8000/grandblue"
+
+
+def fix_image_url(url):
+    if not url:
+        return None
+
+    url = str(url)
+
+    if url.startswith("http://127.0.0.1:8000"):
+        return url.replace("http://127.0.0.1:8000", IMAGE_BASE_URL)
+
+    if url.startswith("http://localhost:8000"):
+        return url.replace("http://localhost:8000", IMAGE_BASE_URL)
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    if url.startswith("/"):
+        return f"{IMAGE_BASE_URL}{url}"
+
+    return f"{IMAGE_BASE_URL}/{url}"
 
 
 def activity_detail_view(page: ft.Page, activity_id: int):
@@ -597,7 +619,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
         if images:
             if selected_image["index"] >= len(images):
                 selected_image["index"] = 0
-            hero_url = images[selected_image["index"]].get("image_url")
+            hero_url = fix_image_url(images[selected_image["index"]].get("image_url"))
         else:
             hero_url = None
 
@@ -833,7 +855,7 @@ def activity_detail_view(page: ft.Page, activity_id: int):
                                     alignment=ft.Alignment(0, 0),
                                     content=(
                                         ft.Image(
-                                            src=h.get("icon_image_url"),
+                                            src=fix_image_url(h.get("icon_image_url")),
                                             width=26,
                                             height=26,
                                             fit="contain",
