@@ -16,6 +16,8 @@ from .views import (
     review_api,
     notifications_api,
     current_user,
+    update_activity_api,
+    delete_activity_api,
 )
 
 router = DefaultRouter()
@@ -32,6 +34,8 @@ urlpatterns = [
     # Activities
     path("activities/", ActivityListView.as_view(), name="activity-list"),
     path("activities/<int:pk>/", ActivityDetailView.as_view(), name="activity-detail"),
+    path("activities/<int:activity_id>/update/", update_activity_api, name="update-activity"),
+    path("activities/<int:activity_id>/delete/", delete_activity_api, name="delete-activity"),
 
     # Bookings
     path("bookings/<int:user_id>/", user_bookings_api, name="user-bookings"),
