@@ -257,6 +257,45 @@ class ActivityViewSet(ViewSet):
         return Response(result)
 
 
+@api_view(["PUT"])
+@permission_classes([permissions.AllowAny])
+def update_activity_api(request, activity_id):
+    try:
+        activity = Activity.objects.get(id=activity_id)
+        serializer = ActivitySerializer(
+            activity,
+            data=request.data,
+            partial=False,
+            context={"request": request},
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Activity.DoesNotExist:
+        return Response(
+            {"error": "Activity not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@api_view(["DELETE"])
+@permission_classes([permissions.AllowAny])
+def delete_activity_api(request, activity_id):
+    try:
+        activity = Activity.objects.get(id=activity_id)
+        activity.delete()
+        return Response(
+            {"message": "Activity deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+    except Activity.DoesNotExist:
+        return Response(
+            {"error": "Activity not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
 # ── Users / Auth ──────────────────────────────────────────
 
 class UserViewSet(viewsets.ModelViewSet):
