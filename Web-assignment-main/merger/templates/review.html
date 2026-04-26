@@ -44,35 +44,41 @@
                 {% csrf_token %}
                 <div class="review-section">
                     <div style="flex:1;">
-                        <textarea name="comment" class="review-textarea" placeholder="Type your review here..."
-                            id="reviewText">{% if existing_review %}{{ existing_review.comment }}{% endif %}</textarea>
-                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Save Review</button>
+                        <textarea
+                            name="comment"
+                            class="review-textarea"
+                            placeholder="Type your review here..."
+                            id="reviewText"
+                        >{% if existing_review %}{{ existing_review.comment }}{% endif %}</textarea>
+
+                        <button type="submit" class="btn btn-primary" style="margin-top: 15px;">
+                            Save Review
+                        </button>
                     </div>
 
                     <div class="rating-section">
                         <h3 class="rating-title">How many stars would you give?</h3>
-                        <input type="hidden" name="rating" id="ratingInput"
-                            value="{% if existing_review %}{{ existing_review.rating }}{% else %}0{% endif %}">
+                        <input
+                            type="hidden"
+                            name="rating"
+                            id="ratingInput"
+                            value="{% if existing_review %}{{ existing_review.rating }}{% else %}0{% endif %}"
+                        >
                         <div class="stars-container">
                             <div class="star" data-rating="1">
-                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 1" width="50"
-                                    height="50">
+                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 1" width="50" height="50">
                             </div>
                             <div class="star" data-rating="2">
-                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 2" width="50"
-                                    height="50">
+                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 2" width="50" height="50">
                             </div>
                             <div class="star" data-rating="3">
-                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 3" width="50"
-                                    height="50">
+                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 3" width="50" height="50">
                             </div>
                             <div class="star" data-rating="4">
-                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 4" width="50"
-                                    height="50">
+                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 4" width="50" height="50">
                             </div>
                             <div class="star" data-rating="5">
-                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 5" width="50"
-                                    height="50">
+                                <img src="{% static 'images/star-empty.png' %}" class="star-img" alt="Star 5" width="50" height="50">
                             </div>
                         </div>
                     </div>
@@ -86,6 +92,8 @@
     $(function () {
         const emptyStar = "{% static 'images/star-empty.png' %}";
         const filledStar = "{% static 'images/star-filled.png' %}";
+        const reviewUrl = $("#reviewForm").attr("action");
+        const csrfToken = $("input[name='csrfmiddlewaretoken']").val();
 
         function updateStars(rating) {
             $(".star").each(function () {
@@ -100,8 +108,24 @@
             });
         }
 
-        const initialRating = parseInt($("#ratingInput").val(), 10) || 0;
-        updateStars(initialRating);
+        function loadReview() {
+            $.ajax({
+                url: reviewUrl,
+                type: "GET",
+                dataType: "json",
+                success: function (data) {
+                    $("#reviewText").val(data.comment || "");
+                    $("#ratingInput").val(data.rating || 0);
+                    updateStars(parseInt(data.rating, 10) || 0);
+                },
+                error: function () {
+                    const initialRating = parseInt($("#ratingInput").val(), 10) || 0;
+                    updateStars(initialRating);
+                }
+            });
+        }
+
+        loadReview();
 
         $(".star").on("click", function () {
             const rating = parseInt($(this).data("rating"), 10);
@@ -116,17 +140,28 @@
             const $button = $form.find('button[type="submit"]');
 
             $.ajax({
-                url: $form.attr("action"),
+                url: reviewUrl,
                 type: "POST",
                 data: $form.serialize(),
+                dataType: "json",
+                headers: {
+                    "X-CSRFToken": csrfToken
+                },
                 beforeSend: function () {
                     $button.prop("disabled", true);
                 },
-                success: function () {
-                    window.location.reload();
+                success: function (response) {
+                    if (response && response.success) {
+                        loadReview();
+                    } else {
+                        alert(response.error || "Unable to save review.");
+                    }
                 },
-                error: function () {
-                    alert("Unable to save review. Please try again.");
+                error: function (xhr) {
+                    const message = xhr.responseJSON && xhr.responseJSON.error
+                        ? xhr.responseJSON.error
+                        : "Unable to save review. Please try again.";
+                    alert(message);
                 },
                 complete: function () {
                     $button.prop("disabled", false);

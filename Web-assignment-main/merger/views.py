@@ -439,26 +439,34 @@ def user_cancel_booking(request, booking_id):
 
 @login_required(login_url='login')
 def review(request, booking_id):
-    """
-    GET: show review form for a booking (only if the booking belongs to user and is COMPLETED)
-    POST: create or update BookingReview for the booking
-    """
     booking = get_object_or_404(Booking, pk=booking_id)
 
-    # security: only owner can review and only completed bookings
     if booking.customer != request.user:
-        messages.error(request, "You are not allowed to review this booking.")
-        return redirect('profile_booking')
+        return JsonResponse({"error": "Unauthorized"}, status=403)
 
     if booking.status != Booking.Status.COMPLETED:
-        messages.error(request, "Only completed bookings can be reviewed.")
-        return redirect('profile_booking')
+        return JsonResponse({"error": "Booking not completed"}, status=400)
 
-    # try get existing review
     try:
         existing = booking.review
     except BookingReview.DoesNotExist:
         existing = None
+
+    if request.method == 'GET':
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        if is_ajax:
+            return JsonResponse({
+                "rating": existing.rating if existing else 0,
+                "comment": existing.comment if existing else ""
+            })
+        else:
+            context = {
+                'booking': booking,
+                'activity': booking.activity,
+                'existing_review': existing,
+            }
+            return render(request, 'review.html', context)
 
     if request.method == 'POST':
         rating = request.POST.get('rating')
@@ -467,19 +475,16 @@ def review(request, booking_id):
         try:
             rating = int(rating)
         except (TypeError, ValueError):
-            messages.error(request, "Please provide a valid rating (1-5).")
-            return redirect('review', booking_id=booking_id)
+            return JsonResponse({"error": "Invalid rating"}, status=400)
 
         if rating < 1 or rating > 5:
-            messages.error(request, "Rating must be between 1 and 5.")
-            return redirect('review', booking_id=booking_id)
+            return JsonResponse({"error": "Rating must be between 1 and 5"}, status=400)
 
         if existing:
             existing.rating = rating
             existing.comment = comment
             existing.is_deleted = False
             existing.save()
-            messages.success(request, "Your review has been updated.")
         else:
             BookingReview.objects.create(
                 booking=booking,
@@ -487,18 +492,11 @@ def review(request, booking_id):
                 rating=rating,
                 comment=comment,
             )
-            messages.success(request, "Thank you — your review has been saved.")
 
-        # redirect back to profile bookings (where user came from)
-        return redirect('profile_booking')
-
-    # GET: render form
-    context = {
-        'booking': booking,
-        'activity': booking.activity,
-        'existing_review': existing,
-    }
-    return render(request, 'review.html', context)
+        return JsonResponse({
+            "success": True,
+            "message": "Review saved successfully"
+        })
 
 
 def activity_list(request):
