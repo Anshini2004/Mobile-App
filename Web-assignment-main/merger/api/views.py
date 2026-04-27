@@ -55,51 +55,74 @@ def get_tokens_for_user(user):
 
 # ── Bookings ──────────────────────────────────────────────
 
-@api_view(["GET"])
+
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
-def user_bookings_api(request, user_id):
-    """
-    Old URL-compatible endpoint:
-    /bookings/<int:user_id>/
+def user_bookings_api(request, user_id=None):
 
-    user_id is ignored on purpose.
-    JWT request.user is used instead.
-    """
-    bookings = Booking.objects.filter(customer=request.user)
-    serializer = BookingSerializer(bookings, many=True)
-    return Response(serializer.data)
+    if request.method == "GET":
+        bookings = Booking.objects.filter(customer=request.user)
+        serializer = BookingSerializer(bookings, many=True)
+        return Response(serializer.data)
 
+    elif request.method == "PATCH":
+        booking_id = request.data.get("id")
 
-@api_view(["PATCH"])
-@permission_classes([IsAuthenticated])
-def cancel_booking_api(request, booking_id):
-    try:
-        booking = Booking.objects.get(id=booking_id, customer=request.user)
-
-        if booking.status != Booking.Status.CONFIRMED:
+        if not booking_id:
             return Response(
-                {"error": "Only confirmed bookings can be cancelled"},
+                {"error": "booking_id is required in request body"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        booking.status = Booking.Status.CANCELLED
-        booking.save()
+        try:
+            booking = Booking.objects.get(
+                id=booking_id,
+                customer=request.user
+            )
 
-        return Response({"message": "Booking cancelled", "id": booking.id})
+            if booking.status != Booking.Status.CONFIRMED:
+                return Response(
+                    {"error": "Only confirmed bookings can be cancelled"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-    except Booking.DoesNotExist:
-        return Response(
-            {"error": "Booking not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+            booking.status = Booking.Status.CANCELLED
+            booking.save()
+
+            return Response(
+                {
+                    "message": "Booking cancelled successfully",
+                    "booking_id": booking.id,
+                    "status": booking.status,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Booking.DoesNotExist:
+            return Response(
+                {"error": "Booking not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def my_bookings(request):
-    bookings = Booking.objects.filter(customer=request.user)
-    serializer = BookingSerializer(bookings, many=True)
-    return Response(serializer.data)
+def booking_detail_api(request, pk):
+    """
+    Retrieve booking details by booking ID.
+    Only the owner of the booking can view it.
+    
+    GET /bookings/<int:pk>/ -> Get booking details
+    """
+    try:
+        booking = Booking.objects.get(id=pk, customer=request.user)
+        serializer = BookingSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Booking.DoesNotExist:
+        return Response(
+            {"error": "Booking not found or you don't have permission to view it"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 class BookingCreateView(generics.CreateAPIView):
@@ -126,7 +149,6 @@ class BookingCreateView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 # ── Payments ──────────────────────────────────────────────
 

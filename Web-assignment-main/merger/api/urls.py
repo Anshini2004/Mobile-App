@@ -12,7 +12,7 @@ from .views import (
     AuthViewSet,
     NearMeActivityViewSet,
     user_bookings_api,
-    cancel_booking_api,
+    booking_detail_api,
     review_api,
     notifications_api,
     current_user,
@@ -38,9 +38,9 @@ urlpatterns = [
     path("activities/<int:activity_id>/delete/", delete_activity_api, name="delete-activity"),
 
     # Bookings
-    path("bookings/<int:user_id>/", user_bookings_api, name="user-bookings"),
-    path("bookings/<int:booking_id>/cancel/", cancel_booking_api, name="cancel-booking"),
-    path("bookings/", BookingCreateView.as_view(), name="booking-create"),
+    path("bookings/<int:pk>/", booking_detail_api, name="booking-detail"),
+    path("bookings/", user_bookings_api, name="user-bookings"),
+    path("bookings/create/", BookingCreateView.as_view(), name="booking-create"),
 
     # Reviews / notifications / profile
     path("review/", review_api, name="review"),
