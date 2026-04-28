@@ -280,166 +280,158 @@ class ActivityViewSet(ViewSet):
 
 
 @api_view(["GET", "POST", "PATCH", "PUT", "DELETE"])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def activity_management_api(request, activity_id=None):
 
-    if not request.user.is_staff:
-        return Response(
-            {"error": "Only staff users can access this endpoint"},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        if request.method == "GET":
+            aid = activity_id or request.query_params.get("activity_id")
 
-    if request.method == "GET":
-        aid = activity_id or request.data.get("activity_id")
+            if aid:
+                try:
+                    activity = Activity.objects.prefetch_related(
+                        "images",
+                        "highlights"
+                    ).get(id=aid)
 
-        if aid:
-            # Get specific activity
-            try:
-                activity = Activity.objects.prefetch_related(
+                    serializer = ActivitySerializer(
+                        activity,
+                        context={"request": request},
+                    )
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+
+                except Activity.DoesNotExist:
+                    return Response(
+                        {"error": "Activity not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                activities = Activity.objects.prefetch_related(
                     "images",
                     "highlights"
-                ).get(id=aid)
+                ).all()
 
                 serializer = ActivitySerializer(
-                    activity,
+                    activities,
+                    many=True,
                     context={"request": request},
                 )
                 return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        elif request.method == "POST":
+            serializer = ActivitySerializer(
+                data=request.data,
+                context={"request": request},
+            )
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    serializer.data,
+                    status=status.HTTP_201_CREATED,
+                )
+
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        elif request.method == "PATCH":
+            aid = activity_id or request.data.get("activity_id")
+
+            if not aid:
+                return Response(
+                    {"error": "activity_id is required in request body"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                activity = Activity.objects.get(id=aid)
+
+                serializer = ActivitySerializer(
+                    activity,
+                    data=request.data,
+                    partial=True,
+                    context={"request": request},
+                )
+
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        serializer.data,
+                        status=status.HTTP_200_OK,
+                    )
+
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             except Activity.DoesNotExist:
                 return Response(
                     {"error": "Activity not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-        else:
-            # Get all activities
-            activities = Activity.objects.prefetch_related(
-                "images",
-                "highlights"
-            ).all()
 
-            serializer = ActivitySerializer(
-                activities,
-                many=True,
-                context={"request": request},
-            )
-            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif request.method == "PUT":
+            aid = activity_id or request.data.get("activity_id")
 
-    elif request.method == "POST":
-        serializer = ActivitySerializer(
-            data=request.data,
-            context={"request": request},
-        )
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    elif request.method == "PATCH":
-        aid = activity_id or request.data.get("activity_id")
-
-        if not aid:
-            return Response(
-                {"error": "activity_id is required in request body"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            activity = Activity.objects.get(id=aid)
-
-            serializer = ActivitySerializer(
-                activity,
-                data=request.data,
-                partial=True,
-                context={"request": request},
-            )
-
-            if serializer.is_valid():
-                serializer.save()
+            if not aid:
                 return Response(
-                    serializer.data,
+                    {"error": "activity_id is required in request body"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                activity = Activity.objects.get(id=aid)
+
+                serializer = ActivitySerializer(
+                    activity,
+                    data=request.data,
+                    partial=False,
+                    context={"request": request},
+                )
+
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(
+                        serializer.data,
+                        status=status.HTTP_200_OK,
+                    )
+
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            except Activity.DoesNotExist:
+                return Response(
+                    {"error": "Activity not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        elif request.method == "DELETE":
+            aid = activity_id or request.data.get("activity_id")
+
+            if not aid:
+                return Response(
+                    {"error": "activity_id is required in request body"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                activity = Activity.objects.get(id=aid)
+                activity.delete()
+
+                return Response(
+                    {"message": "Activity deleted successfully"},
                     status=status.HTTP_200_OK,
                 )
 
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        except Activity.DoesNotExist:
-            return Response(
-                {"error": "Activity not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    elif request.method == "PUT":
-        aid = activity_id or request.data.get("activity_id")
-
-        if not aid:
-            return Response(
-                {"error": "activity_id is required in request body"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            activity = Activity.objects.get(id=aid)
-
-            serializer = ActivitySerializer(
-                activity,
-                data=request.data,
-                partial=False,
-                context={"request": request},
-            )
-
-            if serializer.is_valid():
-                serializer.save()
+            except Activity.DoesNotExist:
                 return Response(
-                    serializer.data,
-                    status=status.HTTP_200_OK,
+                    {"error": "Activity not found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        except Activity.DoesNotExist:
-            return Response(
-                {"error": "Activity not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-    elif request.method == "DELETE":
-        aid = activity_id or request.data.get("activity_id")
-
-        if not aid:
-            return Response(
-                {"error": "activity_id is required in request body"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            activity = Activity.objects.get(id=aid)
-            activity.delete()
-
-            return Response(
-                {"message": "Activity deleted successfully"},
-                status=status.HTTP_200_OK,
-            )
-
-        except Activity.DoesNotExist:
-            return Response(
-                {"error": "Activity not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
 
 # ── Users / Auth ──────────────────────────────────────────
 

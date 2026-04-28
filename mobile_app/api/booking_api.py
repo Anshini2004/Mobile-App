@@ -53,7 +53,7 @@ def format_booking(b: dict) -> dict:
 async def get_bookings(page) -> list[dict]:
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{BASE_URL}/bookings/0/",
+            f"{BASE_URL}/bookings/",
             headers=get_auth_headers(page),
             timeout=10
         )
