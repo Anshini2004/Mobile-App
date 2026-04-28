@@ -66,7 +66,7 @@ def user_bookings_api(request, user_id=None):
         return Response(serializer.data)
 
     elif request.method == "PATCH":
-        booking_id = request.data.get("id")
+        booking_id = request.data.get("booking_id")
 
         if not booking_id:
             return Response(

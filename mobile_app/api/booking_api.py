@@ -66,7 +66,8 @@ async def cancel_booking(page, db_id: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(
-                f"{BASE_URL}/bookings/{db_id}/cancel/",
+                f"{BASE_URL}/bookings/",
+                json={"booking_id": db_id},
                 headers=get_auth_headers(page),
                 timeout=10
             )
