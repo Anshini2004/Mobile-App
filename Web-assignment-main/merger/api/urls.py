@@ -13,11 +13,10 @@ from .views import (
     NearMeActivityViewSet,
     user_bookings_api,
     booking_detail_api,
+    activity_management_api,
     review_api,
     notifications_api,
     current_user,
-    update_activity_api,
-    delete_activity_api,
 )
 
 router = DefaultRouter()
@@ -32,10 +31,8 @@ urlpatterns = [
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
     # Activities
-    path("activities/", ActivityListView.as_view(), name="activity-list"),
-    path("activities/<int:pk>/", ActivityDetailView.as_view(), name="activity-detail"),
-    path("activities/<int:activity_id>/update/", update_activity_api, name="update-activity"),
-    path("activities/<int:activity_id>/delete/", delete_activity_api, name="delete-activity"),
+    path("activities/", activity_management_api, name="activity-list"),
+    path("activities/<int:activity_id>/", activity_management_api, name="activity-detail"),
 
     # Bookings
     path("bookings/<int:pk>/", booking_detail_api, name="booking-detail"),
