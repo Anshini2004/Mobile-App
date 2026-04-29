@@ -323,6 +323,12 @@ def activity_management_api(request, activity_id=None):
                 context={"request": request},
             )
 
+            if not request.user.is_staff:
+                return Response(
+                    {"error": "Only staff users can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             if serializer.is_valid():
                 serializer.save()
                 return Response(
@@ -337,6 +343,12 @@ def activity_management_api(request, activity_id=None):
 
         elif request.method == "PATCH":
             aid = activity_id or request.data.get("activity_id")
+
+            if not request.user.is_staff:
+                return Response(
+                    {"error": "Only staff users can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             if not aid:
                 return Response(
@@ -374,7 +386,13 @@ def activity_management_api(request, activity_id=None):
 
         elif request.method == "PUT":
             aid = activity_id or request.data.get("activity_id")
-
+            
+            if not request.user.is_staff:
+                return Response(
+                    {"error": "Only staff users can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             if not aid:
                 return Response(
                     {"error": "activity_id is required in request body"},
@@ -411,6 +429,12 @@ def activity_management_api(request, activity_id=None):
 
         elif request.method == "DELETE":
             aid = activity_id or request.data.get("activity_id")
+
+            if not request.user.is_staff:
+                return Response(
+                    {"error": "Only staff users can access this endpoint"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
             if not aid:
                 return Response(
