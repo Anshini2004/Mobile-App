@@ -293,7 +293,7 @@ def activity_management_api(request, activity_id=None):
                         "highlights"
                     ).get(id=aid)
 
-                    serializer = ActivitySerializer(
+                    serializer = ActivityDetailSerializer(
                         activity,
                         context={"request": request},
                     )
