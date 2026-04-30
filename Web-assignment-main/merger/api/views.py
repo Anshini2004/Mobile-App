@@ -342,7 +342,7 @@ def activity_management_api(request, activity_id=None):
             )
 
         elif request.method == "PATCH":
-            aid = activity_id or request.data.get("activity_id")
+            aid = activity_id or request.data.get("id")
 
             if not request.user.is_staff:
                 return Response(
@@ -385,7 +385,7 @@ def activity_management_api(request, activity_id=None):
                 )
 
         elif request.method == "PUT":
-            aid = activity_id or request.data.get("activity_id")
+            aid = activity_id or request.data.get("id")
             
             if not request.user.is_staff:
                 return Response(
@@ -428,7 +428,7 @@ def activity_management_api(request, activity_id=None):
                 )
 
         elif request.method == "DELETE":
-            aid = activity_id or request.data.get("activity_id")
+            aid = activity_id or request.data.get("id")
 
             if not request.user.is_staff:
                 return Response(
