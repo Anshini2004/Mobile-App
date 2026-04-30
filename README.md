@@ -4,12 +4,12 @@
 Project Title: GRAND BLUE - Flet Mobile Application
 
 # Team Members:
-1. Gangaram Kushan
-2. Ramjug Karishma
-3. Ghoorah Bhuvanesh
-4. Mohess Shreeyash
-5. Bhujun Yuvraj
-6. Bundhoo Bhavesh
+1. Gangaram Kushan - 2414333
+2. Ramjug Karishma - 2414539
+3. Ghoorah Bhuvanesh - 2313458
+4. Mohess Shreeyash - 2414197
+5. Bhujun Yuvraj - 2414631
+6. Bundhoo Bhavesh - 2414708
 
 # Important Note
 All group members agree that the marks for this project must be shared and allocated equally among all six members.
