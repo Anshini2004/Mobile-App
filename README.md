@@ -15,7 +15,7 @@ Project Title: GRAND BLUE - Flet Mobile Application
 All group members agree that the marks for this project must be shared and allocated equally among all six members.
 
 # 1. Project Overview
-GRAND BLUE Mobile App is a Flet-based cross-platform mobile application that provides customers with seamless access to water-based activities in Mauritius. Built with Python and Flet, the application offers a modern, responsive interface for browsing, booking, and managing activities on both iOS and Android devices.
+GRAND BLUE Mobile App is a Flet-based cross-platform mobile application that provides customers with seamless access to water-based activities in Mauritius. Built with Python and Flet, the application offers a modern, responsive interface for browsing, booking, and managing activities on both iOS and Android devices. It also includes a geolocation feature that allows users to view their real-time location and discover nearby activities.
 
 The project was developed using:
 
@@ -40,12 +40,14 @@ The project was developed using:
 - Receive notifications about bookings and updates
 - Dark mode support
 - Persistent session management with JWT tokens
+- Enable their live location to get nearby activities
 
 **For Visitors**
 
 - Browse available activities without authentication
 - Register for an account
 - Login to access booking features
+- Enable their live location to get nearby activities
 
 # 3. System Technical Summary
 **Models & Components:**
@@ -86,7 +88,7 @@ The project was developed using:
 4. python-dotenv (for environment variables)
 5. Internet connection for API calls
 
-5. API Integration
+# 5. API Integration
 
 The mobile app communicates with the Django REST API backend. Key endpoints include:
 
